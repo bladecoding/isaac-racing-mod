@@ -248,7 +248,7 @@ function timerUpdate()
   end
 
   local timerString = minutes .. ':' .. seconds
-  Isaac.RenderText(timerString, 17, 211, 0.7, 1.8, 0.2, 1.0) -- X, Y, R, G, B, A
+  Isaac.RenderText(timerString, 17, 211, 0.7, 1.6, 0.2, 1.0) -- X, Y, R, G, B, A
 end
 
 ---
