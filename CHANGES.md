@@ -2,7 +2,7 @@
 
 ### Design Goals
 
-In terms of what to change about the game, the mod has several goals, and attempts to strive a balance between them. However, certain things are prioritized. The goals are listed below in order of importance:
+In terms of what to change about the game, the mod has several goals, and attempts to strike a balance between them. However, certain things are prioritized. The goals are listed below in order of importance:
 
 * to reward skillful play
 * to make the game more fun to play
@@ -80,4 +80,19 @@ Occasionally, other modified rulesets are used for racing to spice things up:
 
 ## Room Changes
 
-These will be implemented after the next official Afterbirth+ patch is released by Nicalis.
+The room changes from the Afterbirth version of the Jud6s mod will be implemented after the next official Afterbirth+ patch is released by Nicalis.
+
+## Rooms That Were Deliberately Not Changed
+
+* Basement #274 - This is a 1x1 room with a TNT barrel to the left/right of the top/bottom entrances. However, on a knife build, if you are playing correctly, you should be pointing it towards the center of the room upon entering.
+* Basement/Cellar #401 - This is a 2x1 room with 4 Pooters. If there is a tinted rock in the room, you should ignore it and hustle to kill the Pooters before they get into a soft-lock position.
+* Cellar #766 - This is a 1x1 room with 3 mega troll bombs, but if you stand completely still, they will not damage you.
+* Caves #161, #271, #553 - If the enemy by the top door is a explosive champion, the player will not be hit. If the enemy by the top door is a tear champion, the player has a full second to react upon entering.
+* Caves #692 - This is a narrow 1x1 room filled with poops. With Ipecac, you can safely shoot left from the top right-hand corner. With Dr. Fetus, you can walk diagonally through the poops to plant your first bomb. With Dr. Fetus and Bomber Boy, it is unavoidable damage.
+* Caves/Catacombs #862 - This is a room with 5 Crazy Long Legs. On a low damage build, it is possible for the spiders to come at you from every angle and cause unavoidable damage. However, spider movement is RNG dependant and actual unavoidable damage is rare.
+* Catacombs #267 - This is a room with a Night Crawler right next to the bottom entrance. Night Crawler's cannot spawn as champions, so it will never explode in your face from blue flies.
+* Dark Room #287 - This is a room with 3 mega troll bombs and an Imp. If you stand completely still, the troll bombs will not damage you.
+* Chest #39 - This is a room with 2 Mega Maws. Even with the champion version, there is enough time to react to the patterns.
+* Mama Gurdy - In Afterbirth, you have more time to dodge the spikes before the hitbox appears.
+* Daddy Long Legs - In Afterbirth, the multiple stomp attack no longer damages you before the animation begins.
+* Pride (narrow room) - Sometimes, the bombs spawn in such a way that it is unavoidable damage, but this is rare.

@@ -23,6 +23,7 @@ TODO:
 ROOMS TODO:
 - Womb/Utero #825 - https://gyazo.com/86396e78c14372ef5470e33b619a0976
   - Remove entire bottom row of Nerve Endings
+- Womb/Utero #147 - This is a room with 3 Nerve Endings next to the entrance. If you have Ipecac, it is possible to use a tear on the wall to safely kill a Nerve Ending. Alternatively, you can safely use a bomb. However, the new champion Nerve Endings may make this room unavoidable damage.
 - Caves/Catacombs room #914 - 
   - 1 Row of pits at the bottom, + 3 squares of pits on 2nd row from bottom
 - Fatty room with like 30 fatties????
