@@ -1,11 +1,11 @@
 {
-status="none",
+status="open",
 rType="unranked",
-rFormat="unseeded",
+rFormat="seeded",
 character="Judas",
 goal="Blue Baby",
-seed="-",
-startingItems={},
-currentSeed="-",
+seed="6F4D VR34",
+startingItems={21,399},
+currentSeed="6F4D VR34",
 countdown=-1,
 }

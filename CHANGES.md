@@ -23,23 +23,13 @@ In terms of what to change about the game, the mod has several goals, and attemp
 * Judas starts with a bomb instead of 3 coins. (Judas is the most common character to race, so he needs to be able to get Treasure Room pedestal items surrounded by rocks.)
 * Keeper starts with Greed's Gullet, Duality, and 25 cents.
 
-#### 2) Devil Room and Angel Room Changes
+#### 2) Devil Room & Angel Room Changes
 
 Devil Rooms and Angel Rooms without item pedestals in them have been removed.
 
-#### 3) Item Removal
-
-Some items with no effect at all are removed:
-
-* the Karma trinket (all Donation Machines are removed on the BLCK CNDL seed)
-* the Amnesia pill (all curses are removed on the BLCK CNDL seed)
-* the ??? pill (all curses are removed on the BLCK CNDL seed)
-
-#### 4) Cutscene Removal
+#### 3) Cutscene & Animation Removal
 
 Cutscenes are removed. (However, there is an option in the client to re-enable boss cutscenes for racers with cutscene skip muscle memory.)
-
-#### 5) Animation Removal
 
 Some useless animations are removed:
 
@@ -49,15 +39,11 @@ Some useless animations are removed:
 * entering a chest when going to The Chest or beating the game
 * teleporting upwards
 
-#### 6) Wrath of the Lamb style room clear
+#### 4) Wrath of the Lamb style room clear
 
 Room clear was incorrectly ported from Wrath of Lamb to Rebirth; doors are intended to open at the beginning of an enemy's death animation, not at the end. The Racing+ mod fixes this to be the way it was originally intended.
 
-#### 7) Void Portal Removal
-
-Void Portals will automatically be deleted.
-
-#### 8) Room Fixes
+#### 5) Room Fixes
 
 Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
@@ -90,6 +76,12 @@ The [technical specifics of all of the individual room changes are listed in a s
 
 ## Other Minor Changes
 
+* Void Portals will automatically be deleted.
+* Some items with no effect at all are removed:
+  * the Karma trinket (all Donation Machines are removed on the BLCK CNDL seed)
+  * the Amnesia pill (all curses are removed on the BLCK CNDL seed)
+  * the ??? pill (all curses are removed on the BLCK CNDL seed)
+* Troll Bombs and Mega Troll Bombs now always have a fuse timer of exactly 2 seconds.
 * All item rerolls are now seeded per room, even if you purchase or touch the item.
 * Book of Sin is now seeded.
 * Lil Chest is now seeded.

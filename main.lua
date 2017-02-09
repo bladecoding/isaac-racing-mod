@@ -6,24 +6,23 @@
 --[[
 
 TODO:
-- do Sacrifice Room Dark Room check
-- test seeded rach with Crown of Light on Judas, Azazel, and Blue Baby
+- bug: ENTITY_SQUIRT still opening doors early?
+- bug where Go starts as soon as I ready up
 - bug with 2nd magic mushroom: https://clips.twitch.tv/giraffefizzoid/ModernLyrebirdFreakinStinkin
 - dead eye bug with initial gaping maws
 - fix bug with familiars
 - fix bug where race countdown stays for the whole race, maybe if misses frames?
-- fix void floors
-- forget me now after killing boss, go back to B1
+- fix void floors - forget me now after killing boss, go back to B1
 - recode greed's gullet
 - fix shop rolling bug - https://clips.twitch.tv/dea1h/WonderfulHornetRaccAttack
+- Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts all do not take damage when hit by a tear (or Blood Rights) immediately after entering a room.
 - megasatan
-- add more doors to more boss rooms where appropriate to make duality better
+- do Sacrifice Room Dark Room check
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - fix master of Potato softlock with Poly + Epic Fetus (Globin)
 - Fix unseeded Boss heart drops from Pin, etc. (and make it so that they drop during door opening)
 - Integrate 1st place, 2nd place, etc.
-- Fix Dead Eye on poop
-- Change Troll Bombs and Mega Troll Bombs fuse timer to Rebirth-style
+- Fix Dead Eye on red poop / static TNT barrels
 - Make Devil / Angel Rooms given in order and independent of floor
 
 TODO CAN'T FIX:
@@ -491,6 +490,9 @@ function RacingPlus:RunInitForRace()
 
     -- Find out if Crown of Light is one of the starting items
     if race.startingItems[i] == 415 then
+      -- Remove the 2 soul hearts that it gives
+      player:AddSoulHearts(-4)
+
       -- Re-heal Judas and Azazel back to 1 red heart so that they can properly use the Crown of Light
       -- (this should do nothing on all of the other characters)
       player:AddHearts(1)
@@ -537,6 +539,7 @@ function RacingPlus:RaceStart()
   end
 
   Isaac.DebugString("Starting the race!")
+  debugFunction()
 
   -- Load the clock sprite for the timer
   spriteInit("clock", "clock")
@@ -1008,6 +1011,7 @@ function RacingPlus:NPCUpdate(aNpc)
     return
   end
 
+  Isaac.DebugString("Type: " .. tostring(aNpc.Type))
   -- We don't want to look for certain splitting enemies, so make an exception for those
   if aNpc.Type == EntityType.ENTITY_FISTULA_BIG then -- 71 (Teratoma also counts as Fistula)
     return
@@ -1489,7 +1493,7 @@ function RacingPlus:Teleport()
   local index = level:GetCurrentRoomIndex()
   local index2 = level:GetStartingRoomIndex()
 
-  game:ChangeRoom(index2)
+  level:ChangeRoom(index2)
 end
 
 function debugFunction()
