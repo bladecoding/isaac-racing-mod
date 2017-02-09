@@ -13,7 +13,7 @@ In terms of what to change about the game, the mod has several goals, and attemp
 
 ## List of Main Changes
 
-#### 1) Character Changes
+### 1) Character Changes
 
 * All characters now start with the D6 (except for Keeper, who gets to keep his useful Wooden Penny).
 * Certain characters have their health changed so that they can consistently take a devil deal.
@@ -23,11 +23,11 @@ In terms of what to change about the game, the mod has several goals, and attemp
 * Judas starts with a bomb instead of 3 coins. (Judas is the most common character to race, so he needs to be able to get Treasure Room pedestal items surrounded by rocks.)
 * Keeper starts with Greed's Gullet, Duality, and 25 cents.
 
-#### 2) Devil Room & Angel Room Changes
+### 2) Devil Room & Angel Room Changes
 
 Devil Rooms and Angel Rooms without item pedestals in them have been removed.
 
-#### 3) Cutscene & Animation Removal
+### 3) Cutscene & Animation Removal
 
 Cutscenes are removed. (However, there is an option in the client to re-enable boss cutscenes for racers with cutscene skip muscle memory.)
 
@@ -39,11 +39,11 @@ Some useless animations are removed:
 * entering a chest when going to The Chest or beating the game
 * teleporting upwards
 
-#### 4) Wrath of the Lamb style room clear
+### 4) Wrath of the Lamb style room clear
 
 Room clear was incorrectly ported from Wrath of Lamb to Rebirth; doors are intended to open at the beginning of an enemy's death animation, not at the end. The Racing+ mod fixes this to be the way it was originally intended.
 
-#### 5) Room Fixes
+### 5) Room Fixes
 
 Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
@@ -53,18 +53,18 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
 Occasionally, other modified rulesets are used for racing to spice things up:
 
-#### Seeded
+### Seeded
 
 * All characters start with The Compass in addition to their other items.
 * Teleport! and Undefined are removed from all item pools.
 * The Cain's Eye trinket is removed from the game.
 
-#### Dark Room
+### Dark Room
 
 * 4 golden chests will now spawn at the beginning of the Dark Room (instead of red chests).
 * We Need To Go Deeper! is removed from all item pools.
 
-#### Mega Satan
+### Mega Satan
 
 * Pedestals for Key Piece 1 and Key Piece 2 are placed next to the Mega Satan door on both The Chest and the Dark Room.
 
@@ -73,6 +73,8 @@ Occasionally, other modified rulesets are used for racing to spice things up:
 ## Individual Room Changes
 
 The [technical specifics of all of the individual room changes are listed in a separate document](https://github.com/Zamiell/isaac-racing-mod/blob/master/CHANGES-ROOM.md), for those who care to know the nitty-gritty details.
+
+<br />
 
 ## Other Minor Changes
 
@@ -89,6 +91,10 @@ The [technical specifics of all of the individual room changes are listed in a s
 * Mystery Sack will now generate actual random pickups.
 * Fixed the spelling of Humbling Bundle.
 * The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
-* The trapdoor or the beam of light will on W2 be automatically removed depending on your run goal. By default, it will remove the trapdoor.
+* The trapdoor or the beam of light will on Womb 2 be automatically removed depending on your run goal. By default, it will remove the trapdoor.
 
-If you want, you can change the run goal manually in your "save.dat" file, located in the "racing+_857628390" folder.
+If you want, you can change the run goal manually in your "save.dat" file, located in the Racing+ mod folder. By default, this is located at:
+
+```
+C:\Users\james\Documents\My Games\Binding of Isaac Afterbirth+ Mods\racing+_857628390\save.dat
+```

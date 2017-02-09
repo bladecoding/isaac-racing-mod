@@ -45,10 +45,6 @@ The deleted rooms are as follows:
 
 <br />
 
-### Boss Doorway Fix
-
-
-
 ### Treasure Room Fix
 
 The Treasure Room with two pedestals and spikes has been slightly tweaked so that some characters can use a bomb to get the item without spending a soul heart.
@@ -132,6 +128,7 @@ The changed rooms are as follows:
 * Boss: #4036 (War) (deleted)
 * Boss: #5035 (Mega Maw) (deleted)
 * Boss: #5043 (The Gate) (deleted)
+* Miniboss: #2065 (Pride) (removed TNT barrels)
 * Angel Room: #9 (deleted)
 
 <br />
@@ -249,15 +246,6 @@ The changed rooms are as follows:
 * Dark Room: #7
 * Dark Room: #50 (double Adversary, 2x1)
 * Dark Room: #78 (triple Adversary, 2x2)
-
-<br />
-
-### Narrow Pride Fix
-
-While not guaranteed, certain bomb spawns cause unavoidable damage in combination with the TNT barrels. The barrels have been removed to fix this.
-
-The changed room is as follows:
-* #2065
 
 <br />
 
