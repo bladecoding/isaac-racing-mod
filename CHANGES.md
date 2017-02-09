@@ -21,6 +21,7 @@ In terms of what to change about the game, the mod has several goals, and attemp
   * Blue Baby starts with three and a half soul hearts.
   * Azazel starts with half a red heart and half a soul heart.
 * Judas starts with a bomb instead of 3 coins. (Judas is the most common character to race, so he needs to be able to get Treasure Room pedestal items surrounded by rocks.)
+* Keeper starts with Greed's Gullet, Duality, and 25 cents.
 
 #### 2) Devil Room and Angel Room Changes
 
@@ -46,12 +47,17 @@ Some useless animations are removed:
 * jumping in a hole to the next floor
 * going up the beam of light to the Cathedral
 * entering a chest when going to The Chest or beating the game
+* teleporting upwards
 
 #### 6) Wrath of the Lamb style room clear
 
 Room clear was incorrectly ported from Wrath of Lamb to Rebirth; doors are intended to open at the beginning of an enemy's death animation, not at the end. The Racing+ mod fixes this to be the way it was originally intended.
 
-#### 7) Room Fixes
+#### 7) Void Portal Removal
+
+Void Portals will automatically be deleted.
+
+#### 8) Room Fixes
 
 Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
@@ -81,3 +87,16 @@ Occasionally, other modified rulesets are used for racing to spice things up:
 ## Individual Room Changes
 
 The [technical specifics of all of the individual room changes are listed in a separate document](https://github.com/Zamiell/isaac-racing-mod/blob/master/CHANGES-ROOM.md), for those who care to know the nitty-gritty details.
+
+## Other Minor Changes
+
+* All item rerolls are now seeded per room, even if you purchase or touch the item.
+* Book of Sin is now seeded.
+* Lil Chest is now seeded.
+* Book of Sin will now generate actual random pickups.
+* Mystery Sack will now generate actual random pickups.
+* Fixed the spelling of Humbling Bundle.
+* The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
+* The trapdoor or the beam of light will on W2 be automatically removed depending on your run goal. By default, it will remove the trapdoor.
+
+If you want, you can change the run goal manually in your "save.dat" file, located in the "racing+_857628390" folder.
