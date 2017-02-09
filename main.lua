@@ -6,7 +6,13 @@
 --[[
 
 TODO:
-- put on Steam
+- do Sacrifice Room Dark Room check
+- test seeded rach with Crown of Light on Judas, Azazel, and Blue Baby
+- bug with 2nd magic mushroom: https://clips.twitch.tv/giraffefizzoid/ModernLyrebirdFreakinStinkin
+- dead eye bug with initial gaping maws
+- fix bug with familiars
+- fix bug where race countdown stays for the whole race, maybe if misses frames?
+- fix void floors
 - forget me now after killing boss, go back to B1
 - recode greed's gullet
 - fix shop rolling bug - https://clips.twitch.tv/dea1h/WonderfulHornetRaccAttack
@@ -19,32 +25,6 @@ TODO:
 - Fix Dead Eye on poop
 - Change Troll Bombs and Mega Troll Bombs fuse timer to Rebirth-style
 - Make Devil / Angel Rooms given in order and independent of floor
-
-ROOMS TODO:
-- Womb/Utero #825 - https://gyazo.com/86396e78c14372ef5470e33b619a0976
-  - Remove entire bottom row of Nerve Endings
-- Womb/Utero #147 - This is a room with 3 Nerve Endings next to the entrance. If you have Ipecac, it is possible to use a tear on the wall to safely kill a Nerve Ending. Alternatively, you can safely use a bomb. However, the new champion Nerve Endings may make this room unavoidable damage.
-- Caves/Catacombs room #914 - 
-  - 1 Row of pits at the bottom, + 3 squares of pits on 2nd row from bottom
-- Fatty room with like 30 fatties????
-- Depths/Necropolis #863 - 
-  - Fix fires to always be non-red fires
-  - Make space for Mr. Mega
-- Sheol #255
-  - Delete?
-  - 251.10.0
-- Sheol Greed Move #31, #32, #58
-  - 251.10.0
-- Move TNT barrels in Treasure Room still
-- Move TNT barrels in Haunt Boss Room
-- Fix door in room #208 Caves
-- Slightly move Hive upward in room #519 Caves
-- Test Ragman room on Basement in narrow room
-- Catacombs #854 - 12 Pale Fatties (and close to entrance, explode unavoidable?)
-- Catacombs #843 - 11 Pale Fatties
-- rerun XML script finder to find all out of bounds entities
-- run XML script finder to find all rooms with all doors disabled
-- Copy over Afterbirth room changes after the next patch
 
 TODO CAN'T FIX:
 - Automatically enable BLCK CNDL seed (not possible with current bindings)
@@ -89,17 +69,16 @@ local race = { -- The table that gets updated from the "save.dat" file
   countdown       = -1,          -- This corresponds to the graphic to draw on the screen
 }
 local raceVars = { -- Things that pertain to the race but are not read from the "save.dat" file
-  runInitForRaceDone            = false,
-  blckCndlOn                    = false,
-  difficulty                    = 0,
-  character                     = "Isaac",
-  itemBanList                   = {},
-  trinketBanList                = {},
-  hourglassUsed                 = false,
-  skipInit                      = false,
-  checkForNewRoomAfterHourglass = false,
-  started                       = false,
-  startedTime                   = 0,
+  runInitForRaceDone = false,
+  blckCndlOn         = false,
+  difficulty         = 0,
+  character          = "Isaac",
+  itemBanList        = {},
+  trinketBanList     = {},
+  hourglassUsed      = false,
+  started            = false,
+  startedTime        = 0,
+  giveFamiliars      = false,
 }
 local RNGCounter = {
   InitialSeed,
@@ -263,34 +242,6 @@ function incrementRNG(seed)
   return math.random(1, 9999999999)
 end
 
--- This is done either after using the glowing hourglass or if reset in the middle of the run
-function giveStartingItems()
-  -- Local varaibles
-  local game = Game()
-  local player = game:GetPlayer(0)
-  local inBanList
-
-  -- Give the player their starting items, if any
-  for i = 1, #race.startingItems do
-    -- Send a message to the item tracker to remove this item
-    -- (otherwise, since we are using Glowing Hourglass, it will record two of them)
-    Isaac.DebugString("Removing collectible " .. tostring(race.startingItems[i]))
-
-    -- 12 is the maximum amount of charges that any item can have
-    player:AddCollectible(race.startingItems[i], 12, true) -- The second argument is "AddConsumables"
-
-    -- Giving the player the item does not actually remove it from any of the pools, so we have to expliticly add it to the ban list
-    addItemBanList(race.startingItems[i])
-  end
-
-  -- Add item bans for seeded mode
-  if race.rFormat == "seeded" then
-    addItemBanList(CollectibleType.COLLECTIBLE_TELEPORT) -- 44
-    addItemBanList(CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
-    addTrinketBanList(TrinketType.TRINKET_CAINS_EYE) -- 59
-  end
-end
-
 function addItemBanList(itemID)
   local inBanList = false
   for i = 1, #raceVars.itemBanList do
@@ -342,8 +293,6 @@ function RacingPlus:RunInit()
   raceVars.runInitForRaceDone = false
   raceVars.itemBanList = {}
   raceVars.trinketBanList = {}
-  raceVars.hourglassUsed = false
-  raceVars.checkForNewRoomAfterHourglass = false
 
   -- Reset some RNG counters to the floor RNG of B1 for this seed
   -- (future drops will be based on the RNG from this initial random value)
@@ -427,20 +376,8 @@ function RacingPlus:CharacterInit()
 
   -- Do character-specific actions
   if playerType == PlayerType.PLAYER_JUDAS then -- 3
-    -- Find out if Crown of Light is one of the starting items
-    local startingCrown = false
-    for i = 1, #race.startingItems do
-      if race.startingItems[i] == 415 then
-        startingCrown = true
-        break
-      end
-    end
-
     -- Judas needs to be at half of a red heart
-    -- (but make an exception for Crown of Light starts)
-    if startingCrown == false then
-      player:AddHearts(-1)
-    end
+    player:AddHearts(-1)
 
   elseif playerType == PlayerType.PLAYER_EVE then
     -- Remove the existing items (they need to be in "players.xml" so that they get removed from item pools)
@@ -494,6 +431,7 @@ function RacingPlus:CharacterInit()
   end
 end
 
+-- This occurs when first going into the game, after using the Glowing Hourglass during race countdown, and after a reset occurs mid-race
 function RacingPlus:RunInitForRace()
   -- Once per run, we need to check the race status
   -- (this needs to be in a separate function in case reading "save.dat" fails on the first frame of the run)
@@ -534,12 +472,53 @@ function RacingPlus:RunInitForRace()
     return
   end
 
-  -- If this is a seeded race, give us extra starting items
-  giveStartingItems()
+  -- Local variables
+  local game = Game()
+  local player = game:GetPlayer(0)
+  local inBanList
+
+  -- Give us extra starting items (which should only happen on a seeded race or a diversity race)
+  for i = 1, #race.startingItems do
+    -- Send a message to the item tracker to remove this item
+    -- (otherwise, if we are using Glowing Hourglass, it will record two of them)
+    Isaac.DebugString("Removing collectible " .. tostring(race.startingItems[i]))
+
+    -- 12 is the maximum amount of charges that any item can have
+    player:AddCollectible(race.startingItems[i], 12, true) -- The third argument is "AddConsumables"
+
+    -- Giving the player the item does not actually remove it from any of the pools, so we have to expliticly add it to the ban list
+    addItemBanList(race.startingItems[i])
+
+    -- Find out if Crown of Light is one of the starting items
+    if race.startingItems[i] == 415 then
+      -- Re-heal Judas and Azazel back to 1 red heart so that they can properly use the Crown of Light
+      -- (this should do nothing on all of the other characters)
+      player:AddHearts(1)
+      break
+    end
+
+    -- For some reason, Glowing Hourglass does not update the familiar cache, so we have to re-give some items a frame from now
+    if race.startingItems[i] == 275 or -- Lil' Brimstone
+       race.startingItems[i] == 172 or -- Sacrificial Dagger
+       race.startingItems[i] == 360 then -- Incubus
+
+      raceVars.giveFamiliars = true
+    end
+  end
+
+  -- Add item bans for seeded mode
+  if race.rFormat == "seeded" then
+    addItemBanList(CollectibleType.COLLECTIBLE_TELEPORT) -- 44
+    addItemBanList(CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
+    addTrinketBanList(TrinketType.TRINKET_CAINS_EYE) -- 59
+  end
 
   if race.status == "in progress" then
     -- The race has already started (we are late, or perhaps died in the middle of the race)
     RacingPlus:RaceStart()
+  elseif race.status == "starting" and raceVars.hourglassUsed == true then
+    -- After using the Glowing Hourglass, we can appear at any random door, so we need to be explicitly moved back to the starting position
+    player.Position = Vector(320.0, 380.0) -- The starting position is 320.0, 380.0
   else
     -- Spawn two Gaping Maws (235.0)
     local game = Game()
@@ -1090,12 +1069,9 @@ function RacingPlus:PostRender()
 
   if gameFrameCount == 0 and run.initializing == false then
     run.initializing = true
-    if raceVars.skipInit == false then
-      RacingPlus:RunInit()
-    end
+    RacingPlus:RunInit()
   elseif gameFrameCount > 0 and run.initializing == true then
     run.initializing = false
-    raceVars.skipInit = false
   end
 
   -- Keep track of when we change floors
@@ -1111,19 +1087,7 @@ function RacingPlus:PostRender()
   -- Keep track of when we change rooms
   if roomFrameCount == 0 and run.roomEntering == false then
      run.roomEntering = true
-     if raceVars.checkForNewRoomAfterHourglass == true then
-      -- We just reloaded the room from using the Glowing Hourglass
-      raceVars.checkForNewRoomAfterHourglass = false
-
-      -- Move them back to the starting position
-      player.Position = Vector(320.0, 380.0)
-
-      -- The hourglass removed all of the items that we got in the run initialization step, so redo this
-      RacingPlus:CharacterInit()
-      giveStartingItems()
-    else
-      run.roomsEntered = run.roomsEntered + 1
-    end
+     run.roomsEntered = run.roomsEntered + 1
   elseif roomFrameCount > 0 then
     run.roomEntering = false
   end
@@ -1160,14 +1124,12 @@ function RacingPlus:PostRender()
 
         -- Check to see if this is a B1 item room on a seeded race
         local offLimits = false
-        --[[
-        if race.rFormat == "seeded" and
+        if race ~= nil and race.rFormat == "seeded" and
            stage == 1 and
            room:GetType() == RoomType.ROOM_TREASURE and
            entities[i].SubType ~= 263 then
           offLimits = true
         end
-        --]]
 
         -- Check to see if this item is banned
         local bannedItem = false
@@ -1271,7 +1233,7 @@ function RacingPlus:PostRender()
 
     -- The server will write data for us to the "save.dat" file in the mod subdirectory
     -- From: https://www.reddit.com/r/themoddingofisaac/comments/5q3ml0/tutorial_saving_different_moddata_for_each_run/
-    --local oldRace = race
+    local oldRace = race
     race = load("return " .. Isaac.LoadModData(RacingPlus))() -- This loads the "save.dat" file
 
     -- Sometimes loading can fail, I'm not sure why; give up for now and try again on the next frame
@@ -1281,7 +1243,9 @@ function RacingPlus:PostRender()
     end
 
     -- If anything changed, write it to the log
-    --[[
+    if oldRace == nil then
+      return
+    end
     if oldRace.status ~= race.status then
       Isaac.DebugString("ModData status changed: " .. race.status)
     end
@@ -1309,18 +1273,19 @@ function RacingPlus:PostRender()
     if oldRace.countdown ~= race.countdown then
       Isaac.DebugString("ModData countdown changed: " .. tostring(race.countdown))
     end
-    --]]
   end
 
   -- Since race loading succeeded, we need to check to see if we have done a once-per-run race initiailization
   RacingPlus:RunInitForRace()
 
   -- Make sure that some race related variables are reset
-  -- (this is needed if a race is quit at the main menu and then another race is joined before starting the game)
+  -- (we need to check for "open" because it is possible to quit at the main menu and then join another race before starting the game)
   if race.status == "none" or race.status == "open" then
+    raceVars.hourglassUsed = false
     raceVars.started = false
     raceVars.startedTime = 0 -- Remove the timer after we finish or quit a race (1/2)
     spriteInit("clock", 0) -- Remove the timer after we finish or quit a race (2/2)
+    raceVars.giveFamiliars = false
   end
 
   -- If we are not in a run, do nothing
@@ -1356,7 +1321,7 @@ function RacingPlus:PostRender()
     return
   end
 
-  -- Hold the player in place if the race has not started yet (forcefield)
+  -- Hold the player in place if the race has not started yet (emulate the Gaping Maws effect)
   if raceVars.started == false then
     -- The starting position is 320.0, 380.0
     player.Position = Vector(320.0, 380.0)
@@ -1365,6 +1330,21 @@ function RacingPlus:PostRender()
   -- Show the "Wait for the race to begin!" graphic/text
   if race.status == "open" then
     spriteInit("top", "wait")
+  end
+
+  -- For some reason, Glowing Hourglass does not update the familiar cache, so we have to re-give some items
+  if gameFrameCount >= 1 and raceVars.giveFamiliars == true then
+    raceVars.giveFamiliars = false
+    for i = 1, #race.startingItems do
+      if race.startingItems[i] == 275 or -- Lil' Brimstone
+         race.startingItems[i] == 172 or -- Sacrificial Dagger
+         race.startingItems[i] == 360 then -- Incubus
+
+        player:RemoveCollectible(race.startingItems[i])
+        Isaac.DebugString("Removing collectible " .. tostring(race.startingItems[i]))
+        player:AddCollectible(race.startingItems[i], 12, false) -- 12 is the maximum amount of charges that any item can have; the third argument is "AddConsumables"
+      end
+    end
   end
 
   -- Show the appropriate countdown graphic/text
@@ -1382,9 +1362,7 @@ function RacingPlus:PostRender()
 
       if raceVars.hourglassUsed == false then
         raceVars.hourglassUsed = true
-        raceVars.skipInit = true -- Set this so that the mod doesn't detect that a new run has started
         player:UseActiveItem(422, false, false, false, false) -- Glowing Hour Glass (422)
-        raceVars.checkForNewRoomAfterHourglass = true
       end
     elseif race.countdown == 1 then
       spriteInit("top", "1")
@@ -1395,7 +1373,7 @@ function RacingPlus:PostRender()
     elseif race.countdown == 0 or -- The countdown has reached 0
            (race.countdown == -1 and raceVars.started == false) then -- We somehow missed the window where the countdown was 0, so start the race now
 
-      spriteInit("top", "go")
+      spriteInit("top", "go") -- Draw the "Go!" graphic
       RacingPlus:RaceStart()
 
       -- Set the start time to the number of frames that have elapsed since the game is open
@@ -1430,6 +1408,22 @@ function RacingPlus:PostUpdate()
       -- If the room just got changed to a cleared state, increment the total rooms cleared
       run.roomsCleared = run.roomsCleared + 1
       Isaac.DebugString("Rooms cleared: " .. tostring(run.roomsCleared))
+    end
+  end
+
+  -- Check all the (non-grid) entities in the room
+  local entities = Isaac.GetRoomEntities()
+  for i = 1, #entities do
+    --Isaac.DebugString("POOP " .. tostring(i) .. ": " .. tostring(entities[i].Type) .. "." .. tostring(entities[i].Variant))
+    -- We want to make Troll Bomb and Mega Troll Bomb fuse timers be exactly 2 seconds long
+    if entities[i].FrameCount == 1 and
+       entities[i].Type == EntityType.ENTITY_BOMBDROP and
+       (entities[i].Variant == 3 or -- Troll Bomb
+        entities[i].Variant == 4) then -- Mega Troll Bomb
+
+      local bomb = entities[i]:ToBomb()
+      bomb:SetExplosionCountdown(59) -- 60 minus 1 because we start at frame 1
+      Isaac.DebugString("Set BOMB")
     end
   end
 end
