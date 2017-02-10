@@ -499,7 +499,7 @@ The changed room is as follows:
 
 <br />
 
-## Double Trouble Softlock Fix
+### Double Trouble Softlock Fix
 
 On this room, it is impossible to get to the next floor if the player is out of bombs. Some of rocks have been removed to fix this.
 
