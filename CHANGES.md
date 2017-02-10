@@ -20,7 +20,7 @@ In terms of what to change about the game, the mod has several goals, and attemp
   * Judas starts with half a red heart and half a soul heart.
   * Blue Baby starts with three and a half soul hearts.
   * Azazel starts with half a red heart and half a soul heart.
-* Judas starts with a bomb instead of 3 coins. (Judas is the most common character to race, so he needs to be able to get Treasure Room pedestal items surrounded by rocks.)
+* Judas starts with a bomb instead of 3 coins.
 * Keeper starts with Greed's Gullet, Duality, and 25 cents.
 
 ### 2) Devil Room & Angel Room Changes
@@ -31,8 +31,7 @@ Devil Rooms and Angel Rooms without item pedestals in them have been removed.
 
 Cutscenes are removed. (However, there is an option in the client to re-enable boss cutscenes for racers with cutscene skip muscle memory.)
 
-Some useless animations are removed:
-
+Additionally, some useless animations are removed:
 * cowering in the fetal position at the beginning of every floor
 * jumping in a hole to the next floor
 * going up the beam of light to the Cathedral
@@ -46,33 +45,6 @@ Room clear was incorrectly ported from Wrath of Lamb to Rebirth; doors are inten
 ### 5) Room Fixes
 
 Many rooms with unavoidable damage or bugs have been fixed or deleted.
-
-<br />
-
-## Additional Changes for Custom Rulesets
-
-Occasionally, other modified rulesets are used for racing to spice things up:
-
-### Seeded
-
-* All characters start with The Compass in addition to their other items.
-* Teleport! and Undefined are removed from all item pools.
-* The Cain's Eye trinket is removed from the game.
-
-### Dark Room
-
-* 4 golden chests will now spawn at the beginning of the Dark Room (instead of red chests).
-* We Need To Go Deeper! is removed from all item pools.
-
-### Mega Satan
-
-* Pedestals for Key Piece 1 and Key Piece 2 are placed next to the Mega Satan door on both The Chest and the Dark Room.
-
-<br />
-
-## Individual Room Changes
-
-The [technical specifics of all of the individual room changes are listed in a separate document](https://github.com/Zamiell/isaac-racing-mod/blob/master/CHANGES-ROOM.md), for those who care to know the nitty-gritty details.
 
 <br />
 
@@ -94,6 +66,33 @@ The [technical specifics of all of the individual room changes are listed in a s
 * The trapdoor or the beam of light will on Womb 2 be automatically removed depending on your run goal. By default, it will remove the trapdoor.
 
 If you want, you can change the run goal manually in your "save.dat" file, located in the Racing+ mod folder. By default, this is located at:
+
+## Additional Changes for Custom Rulesets
+
+Occasionally, other modified rulesets are used for racing to spice things up:
+
+### Seeded
+
+* All characters start with The Compass in addition to their other items.
+* Teleport! and Undefined are removed from all item pools.
+* The Cain's Eye trinket is removed from the game.
+
+### Dark Room
+
+* 4 gold chests will now spawn at the beginning of the Dark Room (instead of red chests).
+* We Need To Go Deeper! is removed from all item pools.
+
+### Mega Satan
+
+* Pedestals for Key Piece 1 and Key Piece 2 are placed next to the Mega Satan door on both The Chest and the Dark Room.
+
+<br />
+
+## Individual Room Changes
+
+The [technical specifics of all of the individual room changes are listed in a separate document](https://github.com/Zamiell/isaac-racing-mod/blob/master/CHANGES-ROOM.md), for those who care to know the nitty-gritty details.
+
+<br />
 
 ```
 C:\Users\james\Documents\My Games\Binding of Isaac Afterbirth+ Mods\racing+_857628390\save.dat

@@ -73,9 +73,9 @@ The Racing+ mod tries to fix as many bugs as possible. Unavoidable damage is cla
 
 <br />
 
-### Boss Room Door Fix
+### Boss Room Door Fix (Part 1)
 
-It is not possible for Devil Room doors to spawn on boss rooms that only have one entrance. For this reason, several rooms were adjusted to allow for two entrances.
+It is not possible for Devil Room doors to spawn on boss rooms that only have one entrance. For this reason, several rooms were adjusted to allow for at least two entrances.
 
 The changed rooms are as follows:
 * #2065 (Fistula)
@@ -85,9 +85,9 @@ The changed rooms are as follows:
 
 <br />
 
-### Boss Room Door Fix Part 2
+### Boss Room Door Fix (Part 2)
 
-If you have Duality and there is only 2 entrances to a boss room, the Angel Room will not spawn. For this reason, several rooms were adjusted to allow for a third door.
+If you have Duality and there is only 2 entrances to a boss room, the Angel Room will not spawn. For this reason, all non-narrow rooms were adjusted to allow for a third door where possible.
 
 * #1025, #1027, #1028, #1048, #1049 (Larry Jr.)
 * #1045 (Monstro)
@@ -135,7 +135,7 @@ The changed rooms are as follows:
 
 ### Dople & Evil Twin Fix
 
-When shooting in a forward direction and entering a room with a Dople or Evil Twin, the player can be with an unavoidable tear. This bug is fixed by changing all the spawn points of the enemies to be near the corner of the room. Once the room is loaded, the enemy will snap back to where they are supposed to be, but the initial buggy tear will not be in line with the player.
+When shooting in a forward direction and entering a room with a Dople or Evil Twin, the player can be with an unavoidable tear. Rarely, this can also occur even if the player is not shooting. This bug is fixed by changing all the spawn points of the enemies to be near the corner of the room. Once the room is loaded, the enemy will snap back to where they are supposed to be, but the initial buggy tear will not be in line with the player.
 
 The changed rooms are as follows:
 * Womb: #56-#62, #114-#118, #259-#261, #289, #301, #598, #605, #624, #646, #661
@@ -206,7 +206,7 @@ The changed rooms are as follows:
 
 ### Fly Champion Fix
 
-Certain enemies spawn near a door. If they spawn as the white fly champion version, the player will be touched while the room is loading and automatically take damage. This bug is fixed by moving them closer to the center of the room.
+Certain enemies spawn near a door. If they spawn as the white fly champion variant, the player will be touched while the room is loading and automatically take damage. This bug is fixed by moving the enemies closer to the center of the room.
 
 The changed rooms are as follows:
 * Cellar: #236 (Sack)
@@ -222,7 +222,7 @@ If a player enters from the bottom door of the 2x1 Depths / Necropolis room with
 
 The changed rooms are as follows:
 * Depths: #316
-* Necropolis - #316
+* Necropolis: #316
 
 <br />
 
@@ -271,7 +271,7 @@ The changed room is as follows:
 
 ### Carrion Queen Fix
 
-In some rooms, Carrion Queen spawns very close to an entrance. This is fixed by moving her to the center of the room.
+In some rooms, Carrion Queen spawns very close to an entrance and can automatically damage the player upon moving. This is fixed by moving her to the center of the room.
 
 The changed rooms are as follows:
 * #3270
@@ -283,7 +283,7 @@ The changed rooms are as follows:
 
 ### Pin, Frail, and Scolex Fix
 
-On Pin, Frail, and Scolex fights, there is an invisible hitbox during the beginning of the fight. On some rooms, this is near the entrance. This is fixed by moving the spawn to the center of the room.
+On Pin, Frail, and Scolex fights, there is an invisible hitbox at the spawn point shortly after they are loaded. On some rooms, this is near the entrance. This is fixed by moving the spawn to the center of the room.
 
 The changed rooms are as follows:
 * #3370 (Pin)
@@ -319,16 +319,18 @@ The changed room is as follows:
 
 <br />
 
-### Technology Soft-lock Fix
+### Technology Softlock Fix
 
-Certain rooms that require the player to angle their shots can make a Technology build with no bombs soft-lock.
+One room requires the player to angle their shots. This can make a Technology build with no bombs softlock. This bug is fixed by replacing two rocks with poops.
 
 The changed rooms are as follows:
 * Catacombs: #328
 
-### Low Range Soft-lock Fix
+<br />
 
-Low range builds soft-lock in certain rooms. The rooms are fixed by moving the enemies closer.
+### Low Range Softlock Fix
+
+Low range builds softlock in certain rooms. The rooms are fixed by moving the enemies closer.
 
 The changed rooms are as follows:
 * Caves: #226, #305
@@ -342,14 +344,16 @@ The changed rooms are as follows:
 
 ### Card Room Fix
 
-The rooms with a bugged Magician/Lovers card are fixed to be a random card.
+The rooms with a bugged Magician or Lovers card are fixed to be a random card.
 
 The changed rooms are as follows:
-* Depths: #286
-* Necropolis: #286
-* Womb: #687
-* Utero: #687
-* Curse Room: #21
+* Depths: #286 (Magician)
+* Necropolis: #286 (Magician)
+* Womb: #687 (Magician)
+* Utero: #687 (Magician)
+* Curse Room: #21 (Lovers)
+
+<br />
 
 ### Rune Room Fix
 
@@ -391,7 +395,7 @@ The changed room is as follows:
 
 ### Pooter Fix
 
-On certain rooms in the Basement/Cellar, some Pooters can fly over rocks, causing a pseudo-soft-lock.
+On certain rooms in the Basement/Cellar, some Pooters can fly over rocks, causing a pseudo-softlock.
 
 The changed rooms are as follows:
 * Basement: #135, #391
@@ -400,7 +404,7 @@ The changed rooms are as follows:
 
 ### Bomb Puzzle Room Fix
 
-On the bomb puzzle room with four entrances, the random bomb drops were replaced with a set bomb drop to prevent troll bombs from spawning. Also, a rock was also removed to prevent a soft-lock if the player enters from the left side.
+On the bomb puzzle room with four entrances, the random bomb drops were replaced with a set bomb drop to prevent troll bombs from spawning. Also, a rock was also removed to prevent a softlock if the player enters from the left side.
 
 The changed room is as follows:
 * Depths: #41
@@ -483,6 +487,27 @@ In one room, the Drowned Chargers that spawn from a Hive can be unavoidable dama
 The changed room is as follows:
 * Caves: #519
 
+<br />
+
+### Boil Softlock Fix
+
+In one room, there are Boils behind a Key Block, which can lead to a softlock if you have no keys or bombs. The stacked Boils have been removed.
+
+The changed room is as follows:
+* Womb: #692
+* Utero: #692
+
+<br />
+
+## Double Trouble Softlock Fix
+
+On this room, it is impossible to get to the next floor if the player is out of bombs. Some of rocks have been removed to fix this.
+
+The changed room is as follows:
+* Double Trouble: #3732
+
+<br />
+
 
 
 
@@ -498,7 +523,7 @@ Props were removed in the following rooms:
 
 ### Donation Machine Room Removal
 
-One room in the Necropolis has a donation machine in it. Since using the BLCK CNDL seed removes donation machines from the game, this room is largely useless.
+One room in the Necropolis has a donation machine in it. Since using a mod (or the BLCK CNDL seed) removes donation machines from the game, this room is largely useless.
 
 The removed room is as follows:
 * Necropolis: #469
@@ -530,9 +555,9 @@ Rooms with entities out of bounds have been placed in bounds. This does not affe
 
 <br />
 
-#### Symmetry Fix
+### Symmetry Fix
 
-Certain rooms in the game were meant to be symmetrical, but one entity or tile was incorrectly placed. This is fixed.
+Certain rooms in the game were probably meant to be symmetrical, but one entity or tile was incorrectly placed. This is fixed.
 * Basement: #581, #772
 * Cellar: #772
 * Caves: #28, #120, #416, #541
@@ -553,7 +578,7 @@ Certain rooms in the game were meant to be symmetrical, but one entity or tile w
 ## Rooms That Were Deliberately Not Changed
 
 * Basement #274 - This is a 1x1 room with a TNT barrel to the left/right of the top/bottom entrances. However, on a knife build, if you are playing correctly, you should be pointing it towards the center of the room upon entering.
-* Basement/Cellar #401 - This is a 2x1 room with 4 Pooters. If there is a tinted rock in the room, you should ignore it and hustle to kill the Pooters before they get into a soft-lock position.
+* Basement/Cellar #401 - This is a 2x1 room with 4 Pooters. If there is a tinted rock in the room, you should ignore it and hustle to kill the Pooters before they get into a softlock position.
 * Cellar #766 - This is a 1x1 room with 3 mega troll bombs, but if you stand completely still, they will not damage you.
 * Caves #161, #271, #553 - If the enemy by the top door is a explosive champion, the player will not be hit. If the enemy by the top door is a tear champion, the player has a full second to react upon entering.
 * Caves #692 - This is a narrow 1x1 room filled with poops. With Ipecac, you can safely shoot left from the top right-hand corner. With Dr. Fetus, you can walk diagonally through the poops to plant your first bomb. With Dr. Fetus and Bomber Boy, it is unavoidable damage.
