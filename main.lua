@@ -8,7 +8,6 @@
 TODO:
 - fix void floors - forget me now after killing boss, go back to B1
 - recode greed's gullet
-- fix shop rolling bug - https://clips.twitch.tv/dea1h/WonderfulHornetRaccAttack
 - Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts all do not take damage when hit by a tear (or Blood Rights) immediately after entering a room.
 - megasatan
 - do Sacrifice Room Dark Room check
@@ -72,7 +71,7 @@ local raceVars = { -- Things that pertain to the race but are not read from the 
   hourglassUsed      = false,
   started            = false,
   startedTime        = 0,
-  updateCache        = false,
+  updateCache        = 0, -- 0 is not update, 1 is set to update after the next run begins, 2 is after the next run has begun
 }
 local RNGCounter = {
   InitialSeed,
@@ -278,7 +277,7 @@ function RacingPlus:RunInit()
   run.roomsCleared = 0
   run.roomsEntered = 0
   run.roomEntering = false
-  run.currentFloor = 0
+  run.currentFloor = 1
   run.currentRoomClearState = true
   run.replacedItems = {}
   run.replacedTrinkets = {}
@@ -493,14 +492,6 @@ function RacingPlus:RunInitForRace()
       player:AddHearts(1)
       break
     end
-
-    -- For some reason, Glowing Hourglass does not update the cache properly, so we have to manually update the cache a frame from now
-    if race.startingItems[i] == 172 or -- Sacrificial Dagger
-       race.startingItems[i] == 275 or -- Lil' Brimstone
-       race.startingItems[i] == 360 then -- Incubus
-
-      raceVars.updateCache = true
-    end
   end
 
   -- Add item bans for seeded mode
@@ -510,12 +501,16 @@ function RacingPlus:RunInitForRace()
     addTrinketBanList(TrinketType.TRINKET_CAINS_EYE) -- 59
   end
 
+  -- If we need to update the cache, mark to do it on the next game frame
+  if raceVars.updateCache == 1 then
+    raceVars.updateCache = 2
+  end
+
   if race.status == "in progress" then
     -- The race has already started (we are late, or perhaps died in the middle of the race)
     RacingPlus:RaceStart()
   elseif race.status == "starting" and raceVars.hourglassUsed == true then
-    -- After using the Glowing Hourglass, we can appear at any random door, so we need to be explicitly moved back to the starting position
-    player.Position = Vector(320.0, 380.0) -- The starting position is 320.0, 380.0
+    -- Don't spawn the Gaping Maws after the reset
   else
     -- Spawn two Gaping Maws (235.0)
     local game = Game()
@@ -1105,6 +1100,18 @@ function RacingPlus:PostRender()
     local floorSeed = level:GetDungeonPlacementSeed()
     RNGCounter.Teleport = floorSeed
     RNGCounter.Undefined = floorSeed
+
+    -- Detect Void teleports
+    if stage ==  12 then
+      -- Give the player The Polaroid if they don't have it already
+      if player:HasCollectible(CollectibleType.COLLECTIBLE_POLAROID) == false then
+        player:AddCollectible(CollectibleType.COLLECTIBLE_POLAROID, 0, false) -- 327
+      end
+
+      -- Teleport them back to Womb 1
+      level:SetStage(6, 0) -- Womb 1, always non-variant (no way to know what the intended variant is)
+      game:StartStageTransition(false, 1) -- The first argument is "SameStage", the second is meaningless
+    end
   end
 
   -- Keep track of when we change rooms
@@ -1189,9 +1196,8 @@ function RacingPlus:PostRender()
         -- If we don't do this, the item will be fully recharged every time the player swaps it out
         newPedestal:ToPickup().Charge = entities[i]:ToPickup().Charge
 
-        -- If we don't do this, shop items will become automatically bought
-        -- (commented out because we are just ignoring shops for now until some bugs are fixed in the bindings)
-        --newPedestal:ToPickup().Price = entities[i]:ToPickup().Price
+        -- If we don't do this, shop items and Devil Room items will become automatically bought
+        newPedestal:ToPickup().Price = entities[i]:ToPickup().Price
 
         -- If we don't do this, you can take both of the pedestals in a double Treasure Room
         newPedestal:ToPickup().TheresOptionsPickup = entities[i]:ToPickup().TheresOptionsPickup
@@ -1311,7 +1317,7 @@ function RacingPlus:PostRender()
     raceVars.started = false
     raceVars.startedTime = 0 -- Remove the timer after we finish or quit a race (1/2)
     spriteInit("clock", 0) -- Remove the timer after we finish or quit a race (2/2)
-    raceVars.updateCache = false
+    raceVars.updateCache = 0
   end
 
   -- If we are not in a run, do nothing
@@ -1359,8 +1365,8 @@ function RacingPlus:PostRender()
   end
 
   -- For some reason, Glowing Hourglass does not update the cache properly for some items, so update the cache manually
-  if gameFrameCount >= 1 and raceVars.updateCache == true then
-    raceVars.updateCache = false
+  if gameFrameCount >= 1 and raceVars.updateCache == 2 then
+    raceVars.updateCache = 0
 
     for i = 1, #race.startingItems do
       if race.startingItems[i] == 275 or -- Lil' Brimstone
@@ -1395,6 +1401,16 @@ function RacingPlus:PostRender()
         for i = 1, 100 do
           -- This function is analogous to missing a shot, so let's miss 100 shots to be sure that the multiplier is actually cleared
           player:ClearDeadEyeCharge()
+        end
+
+        -- For some reason, Glowing Hourglass does not update the familiar cache properly, so we have to manually update the cache a frame from now
+        for i = 1, #race.startingItems do
+          if race.startingItems[i] == 172 or -- Sacrificial Dagger
+             race.startingItems[i] == 275 or -- Lil' Brimstone
+             race.startingItems[i] == 360 then -- Incubus
+
+            raceVars.updateCache = 1 -- Set the cache to update on the first game frame after the next reset
+          end
         end
 
         -- Use the Glowing Hour Glass (422)
@@ -1579,6 +1595,7 @@ function debugFunction()
 
 end
 
+-- Define callbacks
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,  RacingPlus.NPCUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER, RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE, RacingPlus.PostUpdate)
