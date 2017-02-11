@@ -516,8 +516,7 @@ The changed room is as follows:
 
 ### Graphics
 
-Props were removed in the following rooms:
-* Start Room: #2
+Props were removed from the starting room for better visibility.
 
 <br />
 

@@ -63,13 +63,18 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 * Mystery Sack will now generate actual random pickups.
 * Fixed the spelling of Humbling Bundle.
 * The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
-* The trapdoor or the beam of light will on Womb 2 be automatically removed depending on your run goal. By default, it will remove the trapdoor.
+* The trapdoor or the beam of light on Womb 2 will be automatically removed depending on your run goal. By default, it will remove the trapdoor.
 
 If you want, you can change the run goal manually in your "save.dat" file, located in the Racing+ mod folder. By default, this is located at:
+```
+C:\Users\[YourUsername]\Documents\My Games\Binding of Isaac Afterbirth+ Mods\racing+_dev\save.dat
+```
+
+<br />
 
 ## Additional Changes for Custom Rulesets
 
-Occasionally, other modified rulesets are used for racing to spice things up:
+Historically, most races have been unseeded with the goal of killing Blue Baby. However, there are other rulesets used:
 
 ### Seeded
 
@@ -93,7 +98,3 @@ Occasionally, other modified rulesets are used for racing to spice things up:
 The [technical specifics of all of the individual room changes are listed in a separate document](https://github.com/Zamiell/isaac-racing-mod/blob/master/CHANGES-ROOM.md), for those who care to know the nitty-gritty details.
 
 <br />
-
-```
-C:\Users\james\Documents\My Games\Binding of Isaac Afterbirth+ Mods\racing+_857628390\save.dat
-```

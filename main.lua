@@ -6,9 +6,6 @@
 --[[
 
 TODO:
-- bug: ENTITY_SQUIRT still opening doors early?
-- bug where Go starts as soon as I ready up
-- bug with 2nd magic mushroom: https://clips.twitch.tv/giraffefizzoid/ModernLyrebirdFreakinStinkin
 - dead eye bug with initial gaping maws
 - fix bug with familiars
 - fix bug where race countdown stays for the whole race, maybe if misses frames?
@@ -77,7 +74,7 @@ local raceVars = { -- Things that pertain to the race but are not read from the 
   hourglassUsed      = false,
   started            = false,
   startedTime        = 0,
-  giveFamiliars      = false,
+  updateCache        = false,
 }
 local RNGCounter = {
   InitialSeed,
@@ -499,12 +496,13 @@ function RacingPlus:RunInitForRace()
       break
     end
 
-    -- For some reason, Glowing Hourglass does not update the familiar cache, so we have to re-give some items a frame from now
-    if race.startingItems[i] == 275 or -- Lil' Brimstone
-       race.startingItems[i] == 172 or -- Sacrificial Dagger
-       race.startingItems[i] == 360 then -- Incubus
+    -- For some reason, Glowing Hourglass does not update the cache properly, so we have to manually update the cache a frame from now
+    if race.startingItems[i] == 172 or -- Sacrificial Dagger
+       race.startingItems[i] == 275 or -- Lil' Brimstone
+       race.startingItems[i] == 360 or -- Incubus
+       race.startingItems[i] == 373 then -- Dead Eye
 
-      raceVars.giveFamiliars = true
+      raceVars.updateCache = true
     end
   end
 
@@ -1011,8 +1009,8 @@ function RacingPlus:NPCUpdate(aNpc)
     return
   end
 
-  Isaac.DebugString("Type: " .. tostring(aNpc.Type))
   -- We don't want to look for certain splitting enemies, so make an exception for those
+  Isaac.DebugString("NPC TYPE: " .. tostring(aNpc.Type))
   if aNpc.Type == EntityType.ENTITY_FISTULA_BIG then -- 71 (Teratoma also counts as Fistula)
     return
   elseif aNpc.Type == EntityType.ENTITY_FISTULA_MEDIUM then -- 72 (Teratoma also counts as Fistula)
@@ -1020,6 +1018,8 @@ function RacingPlus:NPCUpdate(aNpc)
   elseif aNpc.Type == EntityType.ENTITY_FISTULA_SMALL then -- 73 (Teratoma also counts as Fistula)
     return
   elseif aNpc.Type == EntityType.ENTITY_SQUIRT then -- 220
+    return
+  elseif aNpc.Type == EntityType.ENTITY_DINGA then -- 223
     return
   elseif aNpc.Type == EntityType.ENTITY_MEATBALL then -- 290
     return
@@ -1289,7 +1289,7 @@ function RacingPlus:PostRender()
     raceVars.started = false
     raceVars.startedTime = 0 -- Remove the timer after we finish or quit a race (1/2)
     spriteInit("clock", 0) -- Remove the timer after we finish or quit a race (2/2)
-    raceVars.giveFamiliars = false
+    raceVars.updateCache = false
   end
 
   -- If we are not in a run, do nothing
@@ -1336,9 +1336,10 @@ function RacingPlus:PostRender()
     spriteInit("top", "wait")
   end
 
-  -- For some reason, Glowing Hourglass does not update the familiar cache, so we have to re-give some items
-  if gameFrameCount >= 1 and raceVars.giveFamiliars == true then
-    raceVars.giveFamiliars = false
+  -- For some reason, Glowing Hourglass does not update the cache properly for some items, so update the cache manually
+  if gameFrameCount >= 1 and raceVars.updateCache == true then
+    raceVars.updateCache = false
+    --[[
     for i = 1, #race.startingItems do
       if race.startingItems[i] == 275 or -- Lil' Brimstone
          race.startingItems[i] == 172 or -- Sacrificial Dagger
@@ -1349,6 +1350,10 @@ function RacingPlus:PostRender()
         player:AddCollectible(race.startingItems[i], 12, false) -- 12 is the maximum amount of charges that any item can have; the third argument is "AddConsumables"
       end
     end
+    --]]
+    -- Fix the Dead Eye bug where they will still have the visual ...
+    --player:ClearDeadEyeCharge()
+    player:EvaluateItems()
   end
 
   -- Show the appropriate countdown graphic/text
@@ -1374,8 +1379,7 @@ function RacingPlus:PostRender()
       -- Remove the "Go!" graphic as soon as we enter another room
       -- (the starting room counts as room #1)
       spriteInit("top", 0)
-    elseif race.countdown == 0 or -- The countdown has reached 0
-           (race.countdown == -1 and raceVars.started == false) then -- We somehow missed the window where the countdown was 0, so start the race now
+    elseif race.countdown == 0 and raceVars.started == false then -- The countdown has reached 0
 
       spriteInit("top", "go") -- Draw the "Go!" graphic
       RacingPlus:RaceStart()
@@ -1532,9 +1536,6 @@ function debugFunction()
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
-
-  -- Don't use up a charge
-  return false
 end
 
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,  RacingPlus.NPCUpdate)
