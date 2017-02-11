@@ -499,8 +499,7 @@ function RacingPlus:RunInitForRace()
     -- For some reason, Glowing Hourglass does not update the cache properly, so we have to manually update the cache a frame from now
     if race.startingItems[i] == 172 or -- Sacrificial Dagger
        race.startingItems[i] == 275 or -- Lil' Brimstone
-       race.startingItems[i] == 360 or -- Incubus
-       race.startingItems[i] == 373 then -- Dead Eye
+       race.startingItems[i] == 360 then -- Incubus
 
       raceVars.updateCache = true
     end
@@ -1011,19 +1010,15 @@ function RacingPlus:NPCUpdate(aNpc)
 
   -- We don't want to look for certain splitting enemies, so make an exception for those
   Isaac.DebugString("NPC TYPE: " .. tostring(aNpc.Type))
-  if aNpc.Type == EntityType.ENTITY_FISTULA_BIG then -- 71 (Teratoma also counts as Fistula)
-    return
-  elseif aNpc.Type == EntityType.ENTITY_FISTULA_MEDIUM then -- 72 (Teratoma also counts as Fistula)
-    return
-  elseif aNpc.Type == EntityType.ENTITY_FISTULA_SMALL then -- 73 (Teratoma also counts as Fistula)
-    return
-  elseif aNpc.Type == EntityType.ENTITY_SQUIRT then -- 220
-    return
-  elseif aNpc.Type == EntityType.ENTITY_DINGA then -- 223
-    return
-  elseif aNpc.Type == EntityType.ENTITY_MEATBALL then -- 290
-    return
-  elseif aNpc:IsBoss() == false and aNpc:IsChampion() then
+  if aNpc.Type == EntityType.ENTITY_GAPER or -- 10
+     aNpc.Type == EntityType.ENTITY_FISTULA_BIG or -- 71 (Teratoma also counts as Fistula)
+     aNpc.Type == EntityType.ENTITY_FISTULA_MEDIUM or -- 72 (Teratoma also counts as Fistula)
+     aNpc.Type == EntityType.ENTITY_FISTULA_SMALL or -- 73 (Teratoma also counts as Fistula)
+     aNpc.Type == EntityType.ENTITY_SQUIRT or -- 220
+     aNpc.Type == EntityType.ENTITY_DINGA or -- 223
+     aNpc.Type == EntityType.ENTITY_MEATBALL or -- 290
+     (aNpc:IsBoss() == false and aNpc:IsChampion()) then
+
     -- The following champions split:
     -- 1) Dark red champion, collapses into a red flesh pile upon death and regenerates if not finished off (like a Globin)
     -- 2) Pulsing Green champion, spawns 2 versions of itself
@@ -1339,21 +1334,18 @@ function RacingPlus:PostRender()
   -- For some reason, Glowing Hourglass does not update the cache properly for some items, so update the cache manually
   if gameFrameCount >= 1 and raceVars.updateCache == true then
     raceVars.updateCache = false
-    --[[
+
     for i = 1, #race.startingItems do
       if race.startingItems[i] == 275 or -- Lil' Brimstone
          race.startingItems[i] == 172 or -- Sacrificial Dagger
          race.startingItems[i] == 360 then -- Incubus
 
+        -- Using "EvaluateItems()" doesn't update the familiar cache, so do it ourselves manually
         player:RemoveCollectible(race.startingItems[i])
         Isaac.DebugString("Removing collectible " .. tostring(race.startingItems[i]))
-        player:AddCollectible(race.startingItems[i], 12, false) -- 12 is the maximum amount of charges that any item can have; the third argument is "AddConsumables"
+        player:AddCollectible(race.startingItems[i], 0, false)
       end
     end
-    --]]
-    -- Fix the Dead Eye bug where they will still have the visual ...
-    --player:ClearDeadEyeCharge()
-    player:EvaluateItems()
   end
 
   -- Show the appropriate countdown graphic/text
@@ -1371,7 +1363,15 @@ function RacingPlus:PostRender()
 
       if raceVars.hourglassUsed == false then
         raceVars.hourglassUsed = true
-        player:UseActiveItem(422, false, false, false, false) -- Glowing Hour Glass (422)
+
+        -- Fix a bug with Dead Eye where the multiplier will not get properly reset after using Glowing Hour Glass
+        for i = 1, 100 do
+          -- This function is analogous to missing a shot, so let's miss 100 shots to be sure that the multiplier is actually cleared
+          player:ClearDeadEyeCharge()
+        end
+
+        -- Use the Glowing Hour Glass (422)
+        player:UseActiveItem(422, false, false, false, false)
       end
     elseif race.countdown == 1 then
       spriteInit("top", "1")
