@@ -6,9 +6,6 @@
 --[[
 
 TODO:
-- dead eye bug with initial gaping maws
-- fix bug with familiars
-- fix bug where race countdown stays for the whole race, maybe if misses frames?
 - fix void floors - forget me now after killing boss, go back to B1
 - recode greed's gullet
 - fix shop rolling bug - https://clips.twitch.tv/dea1h/WonderfulHornetRaccAttack
@@ -26,13 +23,14 @@ TODO CAN'T FIX:
 - Automatically enable BLCK CNDL seed (not possible with current bindings)
 - Automatically enter in a seed for seeded races (not possible with current bindings)
 - Make timer on the screen use real time
+- Fix shop "item on sale" bug (setting price to anything other than 15 just causes it to go back to 15 on the next frame)
+- Fix shop pedestal items "rerolling into consumables" bug
 - Do item bans in a proper way via editing item pools (not possible to modify item pools via current bindings)
   - When spawning an item via the console (like "spawn 5.100.12"), it removes it from item pools.
   - When spawning a specific item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 12, 0)"), it does not remove it from any pools.
   - When spawning a random item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 0, 0)"), it removes it from item pools.
   - When giving the player an item with Lua (like "player:AddCollectible(race.startingItems[i], 12, true)"), it does not remove it from any pools.
 - Make Teleport / Undefined / Cursed Eye / Telepills seeded (the ChangeRoom() function is broken and doesn't actually consistently send you to the room that you specify)
-- Be able to skip specific champions from the fast-clear check (not possible to detect what type of champion it is with the current bindings)
 - Skip the fade in and fade out animation when traveling to the next floor (need console access or the "StartStageTransition()" second argument to be working)
 - Stop the player from being teleported upon entering a room with Gurdy, Mom's Heart, or It Lives (Isaac is placed in the location and you can't move him fast enough)
 
@@ -1009,14 +1007,40 @@ function RacingPlus:NPCUpdate(aNpc)
   end
 
   -- We don't want to look for certain splitting enemies, so make an exception for those
-  Isaac.DebugString("NPC TYPE: " .. tostring(aNpc.Type))
   if aNpc.Type == EntityType.ENTITY_GAPER or -- 10
+     aNpc.Type == EntityType.ENTITY_MULLIGAN or -- 16
+     aNpc.Type == EntityType.ENTITY_HIVE or -- 22
+     aNpc.Type == EntityType.ENTITY_GLOBIN or -- 24
+     aNpc.Type == EntityType.ENTITY_BOOMFLY or -- 25 (for Drowned Boom Flies)
+     aNpc.Type == EntityType.ENTITY_ENVY or -- 51
+     aNpc.Type == EntityType.ENTITY_MEMBRAIN or -- 57 (Mama Guts also counts as Membrain)
      aNpc.Type == EntityType.ENTITY_FISTULA_BIG or -- 71 (Teratoma also counts as Fistula)
      aNpc.Type == EntityType.ENTITY_FISTULA_MEDIUM or -- 72 (Teratoma also counts as Fistula)
      aNpc.Type == EntityType.ENTITY_FISTULA_SMALL or -- 73 (Teratoma also counts as Fistula)
+     aNpc.Type == EntityType.ENTITY_BLASTOCYST_BIG or -- 74
+     aNpc.Type == EntityType.ENTITY_BLASTOCYST_MEDIUM or -- 75
+     aNpc.Type == EntityType.ENTITY_BLASTOCYST_SMALL or -- 76
+     aNpc.Type == EntityType.ENTITY_MOTER or -- 80
+     aNpc.Type == EntityType.ENTITY_FALLEN or -- 81
+     aNpc.Type == EntityType.ENTITY_GURGLE or -- 87
+     aNpc.Type == EntityType.ENTITY_HANGER or -- 90
+     aNpc.Type == EntityType.ENTITY_SWARMER or -- 91
+     aNpc.Type == EntityType.ENTITY_BIGSPIDER or -- 94
+     aNpc.Type == EntityType.ENTITY_NEST or -- 205
+     aNpc.Type == EntityType.ENTITY_FATTY or -- 208 (for Pale Fatties)
+     aNpc.Type == EntityType.ENTITY_FAT_SACK or -- 209
+     aNpc.Type == EntityType.ENTITY_BLUBBER or -- 210
+     aNpc.Type == EntityType.ENTITY_SWINGER or -- 216
      aNpc.Type == EntityType.ENTITY_SQUIRT or -- 220
+     aNpc.Type == EntityType.ENTITY_SKINNY or -- 226 (for Rotties)
      aNpc.Type == EntityType.ENTITY_DINGA or -- 223
+     aNpc.Type == EntityType.ENTITY_GRUB or -- 239
+     aNpc.Type == EntityType.ENTITY_BLACK_GLOBIN or -- 278
+     aNpc.Type == EntityType.ENTITY_MEGA_CLOTTY or -- 282
+     aNpc.Type == EntityType.ENTITY_MOMS_DEAD_HAND or -- 287
      aNpc.Type == EntityType.ENTITY_MEATBALL or -- 290
+     aNpc.Type == 303 or -- Blister (303.0)
+     aNpc.Type == EntityType.ENTITY_BROWNIE or -- 402
      (aNpc:IsBoss() == false and aNpc:IsChampion()) then
 
     -- The following champions split:
@@ -1105,7 +1129,8 @@ function RacingPlus:PostRender()
     -- Item pedestals
     if entities[i].Type == EntityType.ENTITY_PICKUP and -- If this is a pedestal item (5.100)
        entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
-       entities[i].InitSeed ~= roomSeed then
+       entities[i].InitSeed ~= roomSeed and
+       room:GetType() ~= RoomType.ROOM_SHOP then -- Skip shops for now because of the "item on sale" bug and the "rerolling into consumables" bug
 
       -- Check to see if we already replaced it with a seeded pedestal
       local itemIdentifier = tostring(roomSeed) .. "-" .. tostring(entities[i].InitSeed)
@@ -1154,6 +1179,7 @@ function RacingPlus:PostRender()
         else
           -- Make a new copy of this item using the room seed
           newPedestal = game:Spawn(5, 100, entities[i].Position, entities[i].Velocity, entities[i].Parent, entities[i].SubType, roomSeed)
+          
           -- We don't need to make a fart noise because the swap will be completely transparent to the user
           -- (the sprites of the two items will obviously be identical)
           -- We don't need to add this item to the ban list because since it already existed, it was properly decremented from the pools on sight
@@ -1164,7 +1190,8 @@ function RacingPlus:PostRender()
         newPedestal:ToPickup().Charge = entities[i]:ToPickup().Charge
 
         -- If we don't do this, shop items will become automatically bought
-        newPedestal:ToPickup().Price = entities[i]:ToPickup().Price
+        -- (commented out because we are just ignoring shops for now until some bugs are fixed in the bindings)
+        --newPedestal:ToPickup().Price = entities[i]:ToPickup().Price
 
         -- If we don't do this, you can take both of the pedestals in a double Treasure Room
         newPedestal:ToPickup().TheresOptionsPickup = entities[i]:ToPickup().TheresOptionsPickup
@@ -1536,6 +1563,20 @@ function debugFunction()
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
+
+  local entities = Isaac.GetRoomEntities()
+  for i = 1, #entities do
+    -- Item pedestals
+    if entities[i].Type == EntityType.ENTITY_PICKUP and -- If this is a pedestal item (5.100)
+       entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE then
+
+      Isaac.DebugString("ID: " .. tostring(entities[i].SubType))
+      Isaac.DebugString("SpawnerType: " .. tostring(entities[i].SpawnerType))
+      Isaac.DebugString("SpawnerVariant: " .. tostring(entities[i].SpawnerVariant))
+      Isaac.DebugString("Index: " .. tostring(entities[i].Index))
+    end
+  end
+
 end
 
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,  RacingPlus.NPCUpdate)
