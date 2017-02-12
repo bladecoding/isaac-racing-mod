@@ -991,14 +991,22 @@ end
 -- We want to track Globins for potential softlocks
 function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, DamageSource, DamageCountdownFrames)
   local npc = TookDamage:ToNPC()  
-  if npc ~= nil and npc.Type == EntityType.ENTITY_GLOBIN then
-    if run.currentGlobins[npc.Index] == nil then
-      run.currentGlobins[npc.Index] = {
-        npc       = npc,
-        lastState = npc.State,
-        regens    = 0,
-      }
-    end
+  if npc == nil then
+    return
+  end
+
+  if npc.Type ~= EntityType.ENTITY_GLOBIN and
+     npc.Type ~= EntityType.ENTITY_BLACK_GLOBIN then
+     
+    return
+  end
+
+  if run.currentGlobins[npc.Index] == nil then
+    run.currentGlobins[npc.Index] = {
+      npc       = npc,
+      lastState = npc.State,
+      regens    = 0,
+    }
   end
 end
 
@@ -1563,7 +1571,7 @@ function RacingPlus:PostUpdate()
         if (entities[i].Type == EntityType.ENTITY_KNIGHT or -- 41
             entities[i].Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
             entities[i].Type == EntityType.ENTITY_BONE_KNIGHT or -- 283
-            entities[i].Type == EntityType.ENTITY_EYE or -- 60
+            --entities[i].Type == EntityType.ENTITY_EYE or -- 60 -- This makes them invulnerable forever
             entities[i].Type == EntityType.ENTITY_WIZOOB or -- 219
             entities[i].Type == EntityType.ENTITY_RED_GHOST) and -- 285
            entities[i]:IsVisible() and -- Changing the state before the entity is visible will result in permanant invisibility

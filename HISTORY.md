@@ -2,7 +2,7 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
-* *0.2.28* - Unreleased
+* *0.2.29* - February 12th
   * Changed the double Forsaken room to have two Dark Uriels.
   * All Globins will permanently die upon the 5th regeneration to prevent Epic Fetus softlocks.
   * Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts no longer have invulernability frames after spawning.
