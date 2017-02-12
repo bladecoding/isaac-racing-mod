@@ -6,11 +6,12 @@
 --[[
 
 TODO:
+- FIX Knights & Eyes
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
+- Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
 - recode greed's gullet
 - Fix unseeded Boss heart drops from Pin, etc. (and make it so that they drop during door opening)
-- Integrate 1st place, 2nd place, etc. on screen
 - Make Devil / Angel Rooms given in order and independent of floor
 
 TODO CAN'T FIX:
@@ -43,6 +44,7 @@ local run = {
   currentFloor          = 1,
   currentRoomClearState = true,
   currentGlobins        = {},
+  currentKnights        = {},
   replacedItems         = {},
   replacedTrinkets      = {},
   placedKeys            = false,
@@ -287,6 +289,7 @@ function RacingPlus:RunInit()
   run.currentFloor = 1
   run.currentRoomClearState = true
   run.currentGlobins = {}
+  run.currentKnights = {}
   run.replacedItems = {}
   run.replacedTrinkets = {}
   run.placedKeys = false
@@ -988,25 +991,23 @@ end
 -- Callbacks
 --
 
--- We want to track Globins for potential softlocks
 function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, DamageSource, DamageCountdownFrames)
   local npc = TookDamage:ToNPC()  
   if npc == nil then
     return
   end
 
+  -- We want to track Globins for potential softlocks
   if npc.Type ~= EntityType.ENTITY_GLOBIN and
      npc.Type ~= EntityType.ENTITY_BLACK_GLOBIN then
-     
-    return
-  end
 
-  if run.currentGlobins[npc.Index] == nil then
-    run.currentGlobins[npc.Index] = {
-      npc       = npc,
-      lastState = npc.State,
-      regens    = 0,
-    }
+    if run.currentGlobins[npc.Index] == nil then
+      run.currentGlobins[npc.Index] = {
+        npc       = npc,
+        lastState = npc.State,
+        regens    = 0,
+      }
+    end
   end
 end
 
@@ -1029,7 +1030,10 @@ function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
   local game = Game()
   local runFrameCount = game:GetFrameCount()
+  local level = game:GetLevel()
+  local stage = level:GetStage()
   local room = game:GetRoom()
+  local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
 
   -- Only look for enemies that are dying
   if aNpc:IsDead() == false then
@@ -1043,6 +1047,11 @@ function RacingPlus:NPCUpdate(aNpc)
 
   -- Only look when the the room is not cleared yet
   if room:IsClear() then
+    return
+  end
+
+  -- We don't want to open the doors in a a puzzle room
+  if room:HasTriggerPressurePlates() then
     return
   end
 
@@ -1080,19 +1089,20 @@ function RacingPlus:NPCUpdate(aNpc)
      aNpc.Type == EntityType.ENTITY_MOMS_DEAD_HAND or -- 287
      aNpc.Type == EntityType.ENTITY_MEATBALL or -- 290
      aNpc.Type == 303 or -- Blister (303.0)
-     aNpc.Type == EntityType.ENTITY_BROWNIE or -- 402
-     (aNpc:IsBoss() == false and aNpc:IsChampion()) then
+     aNpc.Type == EntityType.ENTITY_BROWNIE then -- 402
 
     -- The following champions split:
     -- 1) Dark red champion, collapses into a red flesh pile upon death and regenerates if not finished off (like a Globin)
     -- 2) Pulsing Green champion, spawns 2 versions of itself
     -- 3) Holy (white) champion, spawns 2 flies
     -- The Lua API doesn't allow us to check the specific champion type, so just make an exception for all champions
-    return
-  end
 
-  -- We don't want to open the doors in a a puzzle room
-  if room:HasTriggerPressurePlates() then
+    -- Sometimes, the exception will not work, so we need to know if this code block is being entered
+    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", entity type: " .. tostring(aNpc.Type))
+    return
+  elseif aNpc:IsBoss() == false and aNpc:IsChampion() then
+    -- Sometimes, the exception will not work, so we need to know if this code block is being entered
+    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", champion entity type: " .. tostring(aNpc.Type))
     return
   end
 
@@ -1198,8 +1208,9 @@ function RacingPlus:PostRender()
      run.roomEntering = true
      run.roomsEntered = run.roomsEntered + 1
 
-     -- Also reset the current room's Globins (used for softlock prevention)
+     -- Also reset the current room's Globins (used for softlock prevention) and Knights (used to delete invulnerability frames)
      run.currentGlobins = {}
+     run.currentKnights = {}
 
   elseif roomFrameCount > 0 then
     run.roomEntering = false
@@ -1544,6 +1555,24 @@ function RacingPlus:PostUpdate()
     end
   end
 
+  --
+  -- Fix Globin softlocks
+  --
+
+  for i, globin in pairs(run.currentGlobins) do
+    if globin ~= nil then
+      if globin.npc.State ~= globin.lastState and globin.npc.State == 3 then
+        -- A globin went down
+        globin.regens = globin.regens + 1
+        if (globin.regens >= 5) then
+          globin.npc:Kill()
+          run.currentGlobins[i] = nil
+        end
+      end
+      globin.lastState = globin.npc.State
+    end
+  end
+
   -- Check all the (non-grid) entities in the room
   local entities = Isaac.GetRoomEntities()
   for i = 1, #entities do
@@ -1563,42 +1592,59 @@ function RacingPlus:PostUpdate()
 
     else
       --
-      -- Fix invulernability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts
+      -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts
       --
 
       local npc = entities[i]:ToNPC()
-      if (npc ~= nil) then
-        if (entities[i].Type == EntityType.ENTITY_KNIGHT or -- 41
-            entities[i].Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
-            entities[i].Type == EntityType.ENTITY_BONE_KNIGHT or -- 283
-            --entities[i].Type == EntityType.ENTITY_EYE or -- 60 -- This makes them invulnerable forever
-            entities[i].Type == EntityType.ENTITY_WIZOOB or -- 219
-            entities[i].Type == EntityType.ENTITY_RED_GHOST) and -- 285
-           entities[i]:IsVisible() and -- Changing the state before the entity is visible will result in permanant invisibility
-           npc.State == 1 then -- The initial state is 1
+      if npc ~= nil then
+        if npc.Type == EntityType.ENTITY_KNIGHT or -- 41
+           npc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
+           npc.Type == EntityType.ENTITY_BONE_KNIGHT then -- 283
 
-          -- Changing the NPC's state triggers the invulnerability removal on the next frame
-          npc.State = 4
+          -- Knights, Selfless Knights, Floating Knights, and Bone Knights
+          if npc.FrameCount == 4 then
+            -- Changing the NPC's state triggers the invulnerability removal in the next frame
+            npc.State = 4
+
+            -- Manually setting visible to true allows us to disable the invulnerability 1 frame earlier
+            -- (this is to compensate for having only post update hooks)
+            npc.Visible = true
+
+            -- Add this Knight's position to the table so that we can keep track of it on future frames
+            run.currentKnights[npc.Index] = npc.Position
+
+        elseif npc.FrameCount >= 5 and npc.FrameCount <= 30 then
+            -- Keep the 5th frame of the spawn animation going
+            --npc:GetSprite():SetFrame(npc:GetSprite():GetDefaultAnimationName(), 5)
+            -- TODO
+
+            -- Make sure that it stays in place
+            --npc.Position = run.currentKnights[npc.Index]
+            --npc.Velocity = Vector(0, 0)
+          end
+
+        elseif npc.Type == EntityType.ENTITY_EYE then -- 60
+          -- Eyes and Blootshot Eyes
+          if npc.FrameCount == 4 then
+            npc.State = 3 -- TODO: this doesn't work at the moment, add eye open animation cancel
+            npc.Visible = true
+          end
+
+          -- Prevent the Eye from shooting for 30 frames
+          if (npc.State == 4 or npc.State == 8) and npc.FrameCount < 31 then
+            npc.StateFrame = 0
+          end
+
+        elseif npc.Type == EntityType.ENTITY_WIZOOB or -- 219
+               npc.Type == EntityType.ENTITY_RED_GHOST then -- 285
+
+          -- Wizoobs and Red Ghosts
+          if npc.FrameCount == 1 then -- (most NPCs are only visable on the 4th frame, but these are visible immediately)
+            -- The ghost is set to ENTCOLL_NONE until the first reappearance
+            npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL
+          end
         end
       end
-    end
-  end
-
-  --
-  -- Fix Globin softlocks
-  --
-
-  for i, globin in pairs(run.currentGlobins) do
-    if globin ~= nil then
-      if globin.npc.State ~= globin.lastState and globin.npc.State == 3 then
-        -- A globin went down
-        globin.regens = globin.regens + 1
-        if (globin.regens >= 5) then
-          globin.npc:Kill()
-          run.currentGlobins[i] = nil
-        end
-      end
-      globin.lastState = globin.npc.State
     end
   end
 end
@@ -1657,6 +1703,8 @@ function RacingPlus:BookOfSin()
   return true
 end
 
+
+
 function RacingPlus:Teleport()
   -- Local variables
   local game = Game()
@@ -1664,9 +1712,12 @@ function RacingPlus:Teleport()
   local index = level:GetCurrentRoomIndex()
   local index2 = level:GetStartingRoomIndex()
 
+  --[[
   level:ChangeRoom(index2)
   level:ChangeRoom(index2)
   level:ChangeRoom(index2)
+  --]]
+  game:StartRoomTransition(index2, Direction.NO_DIRECTION, 3)
   Isaac.DebugString("Current room index: " .. tostring(index))
   Isaac.DebugString("Teleporting to room: " .. tostring(index2))
 end
