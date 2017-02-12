@@ -479,7 +479,7 @@ function RacingPlus:RunInitForRace()
   local player = game:GetPlayer(0)
   local inBanList
 
-  -- Give us extra starting items (which should only happen on a seeded race or a diversity race)
+  -- Give the player extra starting items (which should only happen on a seeded race or a diversity race)
   for i = 1, #race.startingItems do
     -- Send a message to the item tracker to remove this item
     -- (otherwise, if we are using Glowing Hourglass, it will record two of them)
@@ -998,6 +998,20 @@ function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, Damag
         lastState = npc.State,
         regens    = 0,
       }
+    end
+  end
+end
+
+function RacingPlus:EvaluateCache(player, cacheFlag)
+  if race == nil then
+    return
+  end
+
+  for i = 1, #race.startingItems do
+    if race.startingItems[i] == 600 and -- 13 luck
+       cacheFlag == CacheFlag.CACHE_LUCK then -- 1024
+    
+      player.Luck = player.Luck + 13
     end
   end
 end
@@ -1527,6 +1541,7 @@ function RacingPlus:PostUpdate()
   for i = 1, #entities do
     --
     -- Make Troll Bomb and Mega Troll Bomb fuses deterministic (exactly 2 seconds long)
+    -- (in vanilla the fuse is: 45 + random(1, 2147483647) % 30)
     --
 
     if entities[i].FrameCount == 1 and
@@ -1704,6 +1719,7 @@ end
 
 -- Define callbacks
 RacingPlus:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, RacingPlus.EntityTakeDamage)
+RacingPlus:AddCallback(ModCallbacks.MC_EVALUATE_CACHE,  RacingPlus.EvaluateCache)
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,      RacingPlus.NPCUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,     RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)
