@@ -6,22 +6,18 @@
 --[[
 
 TODO:
-- fix void floors - forget me now after killing boss, go back to B1
-- recode greed's gullet
-- Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts all do not take damage when hit by a tear (or Blood Rights) immediately after entering a room.
-- megasatan
-- do Sacrifice Room Dark Room check
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
-- fix master of Potato softlock with Poly + Epic Fetus (Globin)
+- forget me now after killing boss, go back to B1
+- recode greed's gullet
 - Fix unseeded Boss heart drops from Pin, etc. (and make it so that they drop during door opening)
-- Integrate 1st place, 2nd place, etc.
-- Fix Dead Eye on red poop / static TNT barrels
+- Integrate 1st place, 2nd place, etc. on screen
 - Make Devil / Angel Rooms given in order and independent of floor
 
 TODO CAN'T FIX:
 - Automatically enable BLCK CNDL seed (not possible with current bindings)
 - Automatically enter in a seed for seeded races (not possible with current bindings)
 - Make timer on the screen use real time
+- Make Teleport / Undefined / Cursed Eye / Telepills seeded (the ChangeRoom() function is broken and doesn't actually consistently send you to the room that you specify)
 - Fix shop "item on sale" bug (setting price to anything other than 15 just causes it to go back to 15 on the next frame)
 - Fix shop pedestal items "rerolling into consumables" bug
 - Do item bans in a proper way via editing item pools (not possible to modify item pools via current bindings)
@@ -29,9 +25,9 @@ TODO CAN'T FIX:
   - When spawning a specific item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 12, 0)"), it does not remove it from any pools.
   - When spawning a random item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 0, 0)"), it removes it from item pools.
   - When giving the player an item with Lua (like "player:AddCollectible(race.startingItems[i], 12, true)"), it does not remove it from any pools.
-- Make Teleport / Undefined / Cursed Eye / Telepills seeded (the ChangeRoom() function is broken and doesn't actually consistently send you to the room that you specify)
-- Skip the fade in and fade out animation when traveling to the next floor (need console access or the "StartStageTransition()" second argument to be working)
+- Skip the fade in and fade out animation when traveling to the next floor (need console access or the "StartStageTransition()" function's second argument to be working)
 - Stop the player from being teleported upon entering a room with Gurdy, Mom's Heart, or It Lives (Isaac is placed in the location and you can't move him fast enough)
+- Fix Dead Eye on red poop / static TNT barrels (can't modify existing items)
 
 --]]
 
@@ -46,8 +42,10 @@ local run = {
   roomEntering          = false,
   currentFloor          = 1,
   currentRoomClearState = true,
+  currentGlobins        = {},
   replacedItems         = {},
   replacedTrinkets      = {},
+  placedKeys            = false,
 }
 local raceLoadNextFrame = false
 local race = { -- The table that gets updated from the "save.dat" file
@@ -149,6 +147,7 @@ end
 -- Sprite subroutines
 --
 
+-- Call this once to load the PNG from the anm2 file
 function spriteInit(spriteType, spriteName)
   -- If this is a new sprite type, initialize it in the sprite table
   if spriteTable[spriteType] == nil then
@@ -261,6 +260,14 @@ function addTrinketBanList(trinketID)
   end
 end
 
+function gridToPos(x, y)
+  local game = Game()
+  local room = game:GetRoom()
+  x = x + 1
+  y = y + 1
+  return room:GetGridPosition(y * room:GetGridWidth() + x)
+end
+
 --
 -- Main functions
 --
@@ -279,8 +286,10 @@ function RacingPlus:RunInit()
   run.roomEntering = false
   run.currentFloor = 1
   run.currentRoomClearState = true
+  run.currentGlobins = {}
   run.replacedItems = {}
   run.replacedTrinkets = {}
+  run.placedKeys = false
 
   -- Reset some race variables that we keep track of per run
   raceVars.runInitForRaceDone = false
@@ -979,6 +988,20 @@ end
 -- Callbacks
 --
 
+-- We want to track Globins for potential softlocks
+function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, DamageSource, DamageCountdownFrames)
+  local npc = TookDamage:ToNPC()  
+  if npc ~= nil and npc.Type == EntityType.ENTITY_GLOBIN then
+    if run.currentGlobins[npc.Index] == nil then
+      run.currentGlobins[npc.Index] = {
+        npc       = npc,
+        lastState = npc.State,
+        regens    = 0,
+      }
+    end
+  end
+end
+
 -- We want to look for enemies that are dying so that we can open the doors prematurely
 function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
@@ -1078,6 +1101,7 @@ function RacingPlus:PostRender()
   local level = game:GetLevel()
   local room = game:GetRoom()
   local roomFrameCount = room:GetFrameCount()
+  local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local stage = level:GetStage()
   local player = game:GetPlayer(0)
 
@@ -1093,7 +1117,19 @@ function RacingPlus:PostRender()
   end
 
   -- Keep track of when we change floors
+  -- (this has to be in the PostRender callback because we don't want to wait for the floor transition animation to complete before teleporting away from the Void floor)
   if stage ~= run.currentFloor then
+    -- Find out if we are using a Sacrifice Room
+    if stage == 11 and run.currentFloor ~= 10 then
+      -- We arrivated at The Chest / Dark Room without going through Cathedral / Sheol
+      level:SetStage(run.currentFloor, 0) -- Return to one after the the floor we were on before
+      -- (the first argument is "LevelStage", which is 0 indexed for some reason, the second argument is StageType)
+      game:StartStageTransition(false, 1) -- The first argument is "SameStage", the second is meaningless
+      Isaac.DebugString("Sacrifice Room teleport / cheating detected.")
+      return
+    end
+
+    -- Set the new floor
     run.currentFloor = stage
 
     -- Reset the RNG of some items that should be seeded per floor
@@ -1109,15 +1145,40 @@ function RacingPlus:PostRender()
       end
 
       -- Teleport them back to Womb 1
-      level:SetStage(6, 0) -- Womb 1, always non-variant (no way to know what the intended variant is)
+      level:SetStage(6, 0) -- Womb 1, a stage type of 0 appears to give a random stage type
       game:StartStageTransition(false, 1) -- The first argument is "SameStage", the second is meaningless
+      return
+    end
+
+    -- Spawn Mega Satan key pieces
+    if race ~= nil and
+       race.goal == "Mega Satan" and
+       stage == 11 and
+       run.placedKeys == false then
+
+      run.placedKeys = true
+
+      -- Key Piece 1 (5.100.238)
+      -- 275,175 & 375, 175
+      local poop = room:GetTopLeftPos()
+      Isaac.DebugString(tostring(poop.X))
+      Isaac.DebugString(tostring(poop.Y))
+      game:Spawn(5, 100, gridToPos(4, 0), Vector(0, 0), nil, CollectibleType.COLLECTIBLE_KEY_PIECE_1, roomSeed)
+
+      -- Key Piece 2 (5.100.239)
+      game:Spawn(5, 100, gridToPos(8, 0), Vector(0, 0), nil, CollectibleType.COLLECTIBLE_KEY_PIECE_2, roomSeed)
     end
   end
 
   -- Keep track of when we change rooms
+  -- (this has to be in the PostRender callback because we want the "Go!" graphic to be removed at the beginning of the room transition animation, not the end)
   if roomFrameCount == 0 and run.roomEntering == false then
      run.roomEntering = true
      run.roomsEntered = run.roomsEntered + 1
+
+     -- Also reset the current room's Globins (used for softlock prevention)
+     run.currentGlobins = {}
+
   elseif roomFrameCount > 0 then
     run.roomEntering = false
   end
@@ -1126,9 +1187,6 @@ function RacingPlus:PostRender()
   -- Fix seed incrementation from touching active pedestal items
   -- (this also fixes Angel key pieces and Pandora's Box items being unseeded)
   --
-
-  -- Get a reproducible seed based on the room
-  local roomSeed = room:GetSpawnSeed() -- Will return something like "2496979501"
 
   -- Find "unseeded" pedestal items/trinkets and do item/trinket bans
   local entities = Isaac.GetRoomEntities()
@@ -1236,7 +1294,7 @@ function RacingPlus:PostRender()
         end
 
         local newTrinket
-        if bannedItem then
+        if bannedTrinket then
           -- Spawn a new random trinket (using the B1 floor seed)
           newTrinket = game:Spawn(5, 350, entities[i].Position, entities[i].Velocity, entities[i].Parent, 0, roomSeed)
           --Isaac.DebugString("Made a new random trinket using seed: " .. tostring(roomSeed))
@@ -1444,6 +1502,8 @@ end
 function RacingPlus:PostUpdate()
   -- Local variables
   local game = Game()
+  local level = game:GetLevel()
+  local stage = level:GetStage()
   local room = game:GetRoom()
 
   --
@@ -1465,8 +1525,10 @@ function RacingPlus:PostUpdate()
   -- Check all the (non-grid) entities in the room
   local entities = Isaac.GetRoomEntities()
   for i = 1, #entities do
-    --Isaac.DebugString("POOP " .. tostring(i) .. ": " .. tostring(entities[i].Type) .. "." .. tostring(entities[i].Variant))
-    -- We want to make Troll Bomb and Mega Troll Bomb fuse timers be exactly 2 seconds long
+    --
+    -- Make Troll Bomb and Mega Troll Bomb fuses deterministic (exactly 2 seconds long)
+    --
+
     if entities[i].FrameCount == 1 and
        entities[i].Type == EntityType.ENTITY_BOMBDROP and
        (entities[i].Variant == 3 or -- Troll Bomb
@@ -1474,7 +1536,46 @@ function RacingPlus:PostUpdate()
 
       local bomb = entities[i]:ToBomb()
       bomb:SetExplosionCountdown(59) -- 60 minus 1 because we start at frame 1
-      Isaac.DebugString("Set BOMB")
+      -- Note that game physics occur at 30 frames per second instead of 60
+
+    else
+      --
+      -- Fix invulernability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts
+      --
+
+      local npc = entities[i]:ToNPC()
+      if (npc ~= nil) then
+        if (entities[i].Type == EntityType.ENTITY_KNIGHT or -- 41
+            entities[i].Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
+            entities[i].Type == EntityType.ENTITY_BONE_KNIGHT or -- 283
+            entities[i].Type == EntityType.ENTITY_EYE or -- 60
+            entities[i].Type == EntityType.ENTITY_WIZOOB or -- 219
+            entities[i].Type == EntityType.ENTITY_RED_GHOST) and -- 285
+           entities[i]:IsVisible() and -- Changing the state before the entity is visible will result in permanant invisibility
+           npc.State == 1 then -- The initial state is 1
+
+          -- Changing the NPC's state triggers the invulnerability removal on the next frame
+          npc.State = 4
+        end
+      end
+    end
+  end
+
+  --
+  -- Fix Globin softlocks
+  --
+
+  for i, globin in pairs(run.currentGlobins) do
+    if globin ~= nil then
+      if globin.npc.State ~= globin.lastState and globin.npc.State == 3 then
+        -- A globin went down
+        globin.regens = globin.regens + 1
+        if (globin.regens >= 5) then
+          globin.npc:Kill()
+          run.currentGlobins[i] = nil
+        end
+      end
+      globin.lastState = globin.npc.State
     end
   end
 end
@@ -1541,11 +1642,16 @@ function RacingPlus:Teleport()
   local index2 = level:GetStartingRoomIndex()
 
   level:ChangeRoom(index2)
+  level:ChangeRoom(index2)
+  level:ChangeRoom(index2)
+  Isaac.DebugString("Current room index: " .. tostring(index))
+  Isaac.DebugString("Teleporting to room: " .. tostring(index2))
 end
 
 function debugFunction()
   local game = Game()
   local level = game:GetLevel()
+  local stage = level:GetStage()
   local room = game:GetRoom()
   local player = game:GetPlayer(0)
 
@@ -1567,6 +1673,11 @@ function debugFunction()
   Isaac.DebugString("raceVars table:")
   for k, v in pairs(raceVars) do
     Isaac.DebugString("    " .. k .. ': ' .. tostring(v))
+    if k == "itemBanList" or k == "trinketBanList" then
+      for x, y in pairs(raceVars[k]) do
+        Isaac.DebugString("        " .. x .. ': ' .. tostring(y))
+      end
+    end
   end
 
   Isaac.DebugString("sprite table:")
@@ -1576,30 +1687,27 @@ function debugFunction()
     end
   end
 
+  -- Find NPCs
+  Isaac.DebugString("NPCs:")
+  local entities = Isaac.GetRoomEntities()
+  for i = 1, #entities do
+    --Isaac.DebugString("type: " .. tostring(entities[i].Type))
+  end
+
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
 
-  local entities = Isaac.GetRoomEntities()
-  for i = 1, #entities do
-    -- Item pedestals
-    if entities[i].Type == EntityType.ENTITY_PICKUP and -- If this is a pedestal item (5.100)
-       entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE then
-
-      Isaac.DebugString("ID: " .. tostring(entities[i].SubType))
-      Isaac.DebugString("SpawnerType: " .. tostring(entities[i].SpawnerType))
-      Isaac.DebugString("SpawnerVariant: " .. tostring(entities[i].SpawnerVariant))
-      Isaac.DebugString("Index: " .. tostring(entities[i].Index))
-    end
-  end
-
+  -- Display the "use" animation
+  return true
 end
 
 -- Define callbacks
-RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,  RacingPlus.NPCUpdate)
-RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER, RacingPlus.PostRender)
-RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE, RacingPlus.PostUpdate)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,    RacingPlus.BookOfSin, 43); -- Replacing Book of Sin (97)
---RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,    RacingPlus.Teleport, 59); -- Replacing Teleport (44) (this is not possible with the current bindings)
---RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,    RacingPlus.Undefined, 61); -- Replacing Undefined (324) (this is not possible with the current bindings)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,    debugFunction, 235); -- Debug (custom item)
+RacingPlus:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, RacingPlus.EntityTakeDamage)
+RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,      RacingPlus.NPCUpdate)
+RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,     RacingPlus.PostRender)
+RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, 43); -- Replacing Book of Sin (97)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Teleport, 59); -- Replacing Teleport (44) (TODO)
+--RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Undefined, 61); -- Replacing Undefined (324) (TODO)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        debugFunction, 235); -- Debug (custom item)

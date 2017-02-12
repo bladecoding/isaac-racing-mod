@@ -48,7 +48,7 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
 <br />
 
-## Other Minor Changes
+## Other Minor Bug Fixes & Quality of Life Changes
 
 * Void Portals will automatically be deleted.
 * Some items with no effect at all are removed:
@@ -56,7 +56,9 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
   * the Amnesia pill (all curses are removed on the BLCK CNDL seed)
   * the ??? pill (all curses are removed on the BLCK CNDL seed)
 * Troll Bombs and Mega Troll Bombs now always have a fuse timer of exactly 2 seconds.
-* All item rerolls are now seeded per room, even if you purchase or touch the item.
+* Globins will permanently die upon the 5th regeneration to prevent Epic Fetus softlocks.
+* Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts no longer have invulernability frames after spawning.
+* All item rerolls are now seeded per room, even if you purchase or touch the item. (This doesn't apply to shops.)
 * Book of Sin is now seeded.
 * Lil Chest is now seeded.
 * Book of Sin will now generate actual random pickups.
@@ -90,6 +92,17 @@ Historically, most races have been unseeded with the goal of killing Blue Baby. 
 ### Mega Satan
 
 * Pedestals for Key Piece 1 and Key Piece 2 are placed next to the Mega Satan door on both The Chest and the Dark Room.
+
+### Diversity
+
+* Each racer starts with the same 3 random passive items. (This is in addition to the character's original passive items and resources.)
+* The following items are removed from all items pools, because they override tear effects. It is still possible to start with them as one of the 3 random passive items.
+  * Mom's Knife
+  * Epic Fetus
+  * Tech X
+* The following items are also removed from all item pools, because they allow you to re-roll your build, which spoils the fun.
+  * D4
+  * D100
 
 <br />
 
