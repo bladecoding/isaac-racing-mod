@@ -6,6 +6,7 @@
 --[[
 
 TODO:
+- fix bug with rooms cleared where when you key out of a room into an empty room, it counts as clearing it
 - FIX Knights & Eyes
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
@@ -33,7 +34,7 @@ TODO CAN'T FIX:
 --]]
 
 -- Register the mod (the second argument is the API version)
-local RacingPlus = RegisterMod("Racing+", 1);
+local RacingPlus = RegisterMod("Racing+", 1)
 
 -- Global variables
 local run = {
@@ -177,8 +178,8 @@ end
 -- Call this every frame in MC_POST_RENDER
 function spriteDisplay()
   -- Local variables
-  local game = Game();
-  local room = game:GetRoom();
+  local game = Game()
+  local room = game:GetRoom()
 
   -- Loop through all the sprites and render them
   for k, v in pairs(spriteTable) do
@@ -998,16 +999,24 @@ function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, Damag
   end
 
   -- We want to track Globins for potential softlocks
-  if npc.Type ~= EntityType.ENTITY_GLOBIN and
-     npc.Type ~= EntityType.ENTITY_BLACK_GLOBIN then
+  if (npc.Type == EntityType.ENTITY_GLOBIN or
+      npc.Type == EntityType.ENTITY_BLACK_GLOBIN) and
+     run.currentGlobins[npc.Index] == nil then
 
-    if run.currentGlobins[npc.Index] == nil then
-      run.currentGlobins[npc.Index] = {
-        npc       = npc,
-        lastState = npc.State,
-        regens    = 0,
-      }
-    end
+    run.currentGlobins[npc.Index] = {
+      npc       = npc,
+      lastState = npc.State,
+      regens    = 0,
+    }
+  end
+
+  -- We want to "unstick" Knights if they take damage
+  if (npc.Type == EntityType.ENTITY_KNIGHT or -- 41
+      npc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
+      npc.Type == EntityType.ENTITY_BONE_KNIGHT) and -- 283
+     run.currentKnights[npc.Index].damaged == false then
+
+    run.currentKnights[npc.Index].damaged = true
   end
 end
 
@@ -1025,7 +1034,7 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
   end
 end
 
--- We want to look for enemies that are dying so that we can open the doors prematurely
+-- Knight invulnerability frame removal and fast-clear stuff
 function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
   local game = Game()
@@ -1034,6 +1043,26 @@ function RacingPlus:NPCUpdate(aNpc)
   local stage = level:GetStage()
   local room = game:GetRoom()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
+
+  -- First, look for Knights that are in the "warmup" animation
+  if (aNpc.Type == EntityType.ENTITY_KNIGHT or -- 41
+      aNpc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
+      aNpc.Type == EntityType.ENTITY_BONE_KNIGHT) and -- 283
+     aNpc.FrameCount >= 5 and
+     aNpc.FrameCount <= 30 and
+     run.currentKnights[aNpc.Index].damaged == false then
+
+    -- Keep the 5th frame of the spawn animation going
+    aNpc:GetSprite():SetFrame("Down", 0)
+
+    -- Make sure that it stays in place
+    aNpc.Position = run.currentKnights[aNpc.Index].pos
+    aNpc.Velocity = Vector(0, 0)
+  end
+
+  -- 
+  -- Fast-clear - We want to look for enemies that are dying so that we can open the doors prematurely
+  --
 
   -- Only look for enemies that are dying
   if aNpc:IsDead() == false then
@@ -1567,6 +1596,7 @@ function RacingPlus:PostUpdate()
         if (globin.regens >= 5) then
           globin.npc:Kill()
           run.currentGlobins[i] = nil
+          Isaac.DebugString("Killed Globin " .. tostring(i) .. " to prevent a soft-lock.")
         end
       end
       globin.lastState = globin.npc.State
@@ -1611,22 +1641,17 @@ function RacingPlus:PostUpdate()
             npc.Visible = true
 
             -- Add this Knight's position to the table so that we can keep track of it on future frames
-            run.currentKnights[npc.Index] = npc.Position
-
-        elseif npc.FrameCount >= 5 and npc.FrameCount <= 30 then
-            -- Keep the 5th frame of the spawn animation going
-            --npc:GetSprite():SetFrame(npc:GetSprite():GetDefaultAnimationName(), 5)
-            -- TODO
-
-            -- Make sure that it stays in place
-            --npc.Position = run.currentKnights[npc.Index]
-            --npc.Velocity = Vector(0, 0)
+            run.currentKnights[npc.Index] = {
+              pos = npc.Position,
+              damaged = false,
+            }
           end
 
         elseif npc.Type == EntityType.ENTITY_EYE then -- 60
           -- Eyes and Blootshot Eyes
           if npc.FrameCount == 4 then
-            npc.State = 3 -- TODO: this doesn't work at the moment, add eye open animation cancel
+            npc:GetSprite():SetFrame("Eye Opened", 0)
+            npc.State = 3
             npc.Visible = true
           end
 
@@ -1782,7 +1807,7 @@ RacingPlus:AddCallback(ModCallbacks.MC_EVALUATE_CACHE,  RacingPlus.EvaluateCache
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,      RacingPlus.NPCUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,     RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, 43); -- Replacing Book of Sin (97)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Teleport, 59); -- Replacing Teleport (44) (TODO)
---RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Undefined, 61); -- Replacing Undefined (324) (TODO)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        debugFunction, 235); -- Debug (custom item)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, 43) -- Replacing Book of Sin (97)
+--RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Teleport, 59) -- Replacing Teleport (44) (TODO)
+--RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Undefined, 61) -- Replacing Undefined (324) (TODO)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        debugFunction, 235) -- Debug (custom item)
