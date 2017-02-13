@@ -7,7 +7,6 @@
 
 TODO:
 - fix bug with rooms cleared where when you key out of a room into an empty room, it counts as clearing it
-- FIX Knights & Eyes
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1

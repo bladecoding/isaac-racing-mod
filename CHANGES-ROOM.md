@@ -103,6 +103,8 @@ If you have Duality and there is only 2 entrances to a boss room, the Angel Room
 * #5083 (Dark One)
 * #5106 (Polycephalus)
 
+<br />
+
 ### Unfair Narrow Room Adjustement
 
 While not technically unavoidable, many narrow rooms have near-impossible attack patterns, especially on Dr. Fetus builds.
@@ -578,11 +580,18 @@ Certain rooms in the game were probably meant to be symmetrical, but one entity 
 
 * Basement #274 - This is a 1x1 room with a TNT barrel to the left/right of the top/bottom entrances. However, on a knife build, if you are playing correctly, you should be pointing it towards the center of the room upon entering.
 * Basement/Cellar #401 - This is a 2x1 room with 4 Pooters. If there is a tinted rock in the room, you should ignore it and hustle to kill the Pooters before they get into a softlock position.
+* Basement/Cellar #603 - This is a narrow room with 2 Mullibooms. On base speed, you have enough room to dodge them if you avoid the cobwebs.
+* Basement/Cellar #752 - This is a narrow room with 3 Mega Troll Bombs. This room is not unavoidable with deterministic fuse timers.
+* Basement/Cellar #767 - This is a room with 2 Mega Troll Bombs. This room is not unavoidable with deterministic fuse timers.
 * Cellar #766 - This is a 1x1 room with 3 mega troll bombs, but if you stand completely still, they will not damage you.
 * Caves #161, #271, #553 - If the enemy by the top door is a explosive champion, the player will not be hit. If the enemy by the top door is a tear champion, the player has a full second to react upon entering.
 * Caves #692 - This is a narrow 1x1 room filled with poops. With Ipecac, you can safely shoot left from the top right-hand corner. With Dr. Fetus, you can walk diagonally through the poops to plant your first bomb. With Dr. Fetus and Bomber Boy, it is unavoidable damage.
+* Caves/Catacombs #690 - This is a narrow room with 9 Troll Bombs. This room is not unavoidable with deterministic fuse timers.
 * Caves/Catacombs #862 - This is a room with 5 Crazy Long Legs. On a low damage build, it is possible for the spiders to come at you from every angle and cause unavoidable damage. However, spider movement is RNG dependant and actual unavoidable damage is rare.
+* Caves/Catacombs #885 - This is a narrow room with 4 Blue Gapers. You have enough room to consistently dodge the Gapers.
 * Catacombs #267 - This is a room with a Night Crawler right next to the bottom entrance. Night Crawler's cannot spawn as champions, so it will never explode in your face from blue flies.
+* Depths/Necropolis #699 - This is a room with 2 Mega Troll Bombs and 4 Troll Bombs. This room is not unavoidable with deterministic fuse timers.
+* Sheol #285 - This is a narrow room with 3 Mega Troll Bombs and 1 Troll Bomb. You can simply leave this room, as there are no enemies that cause the doors to become closed.
 * Dark Room #287 - This is a room with 3 mega troll bombs and an Imp. If you stand completely still, the troll bombs will not damage you.
 * Chest #39 - This is a room with 2 Mega Maws. Even with the champion version, there is enough time to react to the patterns.
 * Mama Gurdy - You have enough time to dodge the spikes before the hitbox appears.
