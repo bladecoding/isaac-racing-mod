@@ -1506,6 +1506,11 @@ function RacingPlus:PostRender()
   end
 
   -- Show the appropriate countdown graphic/text
+  if run.roomsEntered > 1 then
+    -- Remove the "Go!" graphic as soon as we enter another room
+    -- (the starting room counts as room #1)
+    spriteInit("top", 0)
+  end
   if race.status == "starting" or race.status == "in progress" then
     if race.countdown == 10 then
       spriteInit("top", "10")
@@ -1546,10 +1551,6 @@ function RacingPlus:PostRender()
       end
     elseif race.countdown == 1 then
       spriteInit("top", "1")
-    elseif run.roomsEntered > 1 then
-      -- Remove the "Go!" graphic as soon as we enter another room
-      -- (the starting room counts as room #1)
-      spriteInit("top", 0)
     elseif race.countdown == 0 and raceVars.started == false then -- The countdown has reached 0
 
       spriteInit("top", "go") -- Draw the "Go!" graphic
