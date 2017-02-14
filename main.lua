@@ -6,7 +6,6 @@
 --[[
 
 TODO:
-- fix bug with rooms cleared where when you key out of a room into an empty room, it counts as clearing it
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
@@ -1166,10 +1165,11 @@ function RacingPlus:PostRender()
   local game = Game()
   local gameFrameCount = game:GetFrameCount()
   local level = game:GetLevel()
+  local stage = level:GetStage()
   local room = game:GetRoom()
   local roomFrameCount = room:GetFrameCount()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
-  local stage = level:GetStage()
+  local clear = room:IsClear()
   local player = game:GetPlayer(0)
 
   -- Check to see if we are starting a run
@@ -1227,9 +1227,6 @@ function RacingPlus:PostRender()
 
       -- Key Piece 1 (5.100.238)
       -- 275,175 & 375, 175
-      local poop = room:GetTopLeftPos()
-      Isaac.DebugString(tostring(poop.X))
-      Isaac.DebugString(tostring(poop.Y))
       game:Spawn(5, 100, gridToPos(4, 0), Vector(0, 0), nil, CollectibleType.COLLECTIBLE_KEY_PIECE_1, roomSeed)
 
       -- Key Piece 2 (5.100.239)
@@ -1242,6 +1239,7 @@ function RacingPlus:PostRender()
   if roomFrameCount == 0 and run.roomEntering == false then
      run.roomEntering = true
      run.roomsEntered = run.roomsEntered + 1
+     run.currentRoomClearState = clear -- This is needed so that we don't get credit for clearing a room when bombing from a room with enemies into an empty room
 
      -- Also reset the current room's Globins (used for softlock prevention) and Knights (used to delete invulnerability frames)
      run.currentGlobins = {}
@@ -1577,18 +1575,20 @@ function RacingPlus:PostUpdate()
   local level = game:GetLevel()
   local stage = level:GetStage()
   local room = game:GetRoom()
+  local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
+  local clear = room:IsClear()
 
   --
   -- Keep track of the total amount of rooms cleared on this run thus far
   --
 
   -- Check the clear status of the room and compare it to what it was a frame ago
-  local clear = room:IsClear()
   if clear ~= run.currentRoomClearState then
     run.currentRoomClearState = clear
 
     if clear == true then
       -- If the room just got changed to a cleared state, increment the total rooms cleared
+      -- (we need to also check for the room seed to avoid the bug of the counter being incremented when bombing through a room with enemies into an empty room)
       run.roomsCleared = run.roomsCleared + 1
       Isaac.DebugString("Rooms cleared: " .. tostring(run.roomsCleared))
     end
@@ -1827,3 +1827,5 @@ RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, 43
 --RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Undefined, 61) -- Replacing Undefined (324) (TODO)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        debugFunction, 235) -- Debug (custom item)
+
+-- Missing item IDs: 43, 59, 61, 235, 263
