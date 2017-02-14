@@ -88,6 +88,7 @@ local RNGCounter = {
   SackOfSacks,
 }
 local spriteTable = {}
+local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
 
 -- Welcome banner
 Isaac.DebugString("+----------------------+")
@@ -372,7 +373,7 @@ function RacingPlus:RunInit()
   raceLoadNextFrame = true
 end
 
--- This is done when a run is started and after the Glowing Hourglass is used
+-- This is done when a run is started and after the Glowing Hour Glass is used
 function RacingPlus:CharacterInit()
   -- Local variables
   local game = Game()
@@ -436,7 +437,7 @@ function RacingPlus:CharacterInit()
   end
 end
 
--- This occurs when first going into the game, after using the Glowing Hourglass during race countdown, and after a reset occurs mid-race
+-- This occurs when first going into the game, after using the Glowing Hour Glass during race countdown, and after a reset occurs mid-race
 function RacingPlus:RunInitForRace()
   -- Once per run, we need to check the race status
   -- (this needs to be in a separate function in case reading "save.dat" fails on the first frame of the run)
@@ -485,11 +486,17 @@ function RacingPlus:RunInitForRace()
   -- Give the player extra starting items (which should only happen on a seeded race or a diversity race)
   for i = 1, #race.startingItems do
     -- Send a message to the item tracker to remove this item
-    -- (otherwise, if we are using Glowing Hourglass, it will record two of them)
+    -- (otherwise, if we are using Glowing Hour Glass, it will record two of them)
     Isaac.DebugString("Removing collectible " .. tostring(race.startingItems[i]))
 
-    -- 12 is the maximum amount of charges that any item can have
-    player:AddCollectible(race.startingItems[i], 12, true) -- The third argument is "AddConsumables"
+    if race.startingItems[i] == 441 and raceVars.hourglassUsed == false then
+      -- Mega Blast bugs out if Glowing Hour Glass is used while the blast is occuring
+      -- So, give them a placeholder Mega Blast if this is before the race has started
+      player:AddCollectible(megaBlastPlaceholder, 12, false)
+    else
+      -- Give the item; the second argument is charge amount, and the third argument is "AddConsumables"
+      player:AddCollectible(race.startingItems[i], 12, true)
+    end
 
     -- Giving the player the item does not actually remove it from any of the pools, so we have to expliticly add it to the ban list
     addItemBanList(race.startingItems[i])
@@ -1483,7 +1490,7 @@ function RacingPlus:PostRender()
     spriteInit("top", "wait")
   end
 
-  -- For some reason, Glowing Hourglass does not update the cache properly for some items, so update the cache manually
+  -- For some reason, Glowing Hour Glass does not update the cache properly for some items, so update the cache manually
   if gameFrameCount >= 1 and raceVars.updateCache == 2 then
     raceVars.updateCache = 0
 
@@ -1516,13 +1523,7 @@ function RacingPlus:PostRender()
       if raceVars.hourglassUsed == false then
         raceVars.hourglassUsed = true
 
-        -- Fix a bug with Dead Eye where the multiplier will not get properly reset after using Glowing Hour Glass
-        for i = 1, 100 do
-          -- This function is analogous to missing a shot, so let's miss 100 shots to be sure that the multiplier is actually cleared
-          player:ClearDeadEyeCharge()
-        end
-
-        -- For some reason, Glowing Hourglass does not update the familiar cache properly, so we have to manually update the cache a frame from now
+        -- For some reason, Glowing Hour Glass does not update the familiar cache properly, so we have to manually update the cache a frame from now
         for i = 1, #race.startingItems do
           if race.startingItems[i] == 172 or -- Sacrificial Dagger
              race.startingItems[i] == 275 or -- Lil' Brimstone
@@ -1531,6 +1532,16 @@ function RacingPlus:PostRender()
             raceVars.updateCache = 1 -- Set the cache to update on the first game frame after the next reset
           end
         end
+
+        -- Fix a bug with Dead Eye where the multiplier will not get properly reset after using Glowing Hour Glass
+        for i = 1, 100 do
+          -- This function is analogous to missing a shot, so let's miss 100 shots to be sure that the multiplier is actually cleared
+          player:ClearDeadEyeCharge()
+        end
+
+        -- Fix a bug with Mega Blast where it will continue to shoot after using Glowing Hour Glass
+        -- (swapping the Mega Blast for another spacebar item should stop the blast)
+        player:RemoveCollectible(CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH) -- 441
 
         -- Use the Glowing Hour Glass (422)
         player:UseActiveItem(422, false, false, false, false)
@@ -1727,8 +1738,6 @@ function RacingPlus:BookOfSin()
   return true
 end
 
-
-
 function RacingPlus:Teleport()
   -- Local variables
   local game = Game()
@@ -1744,6 +1753,13 @@ function RacingPlus:Teleport()
   game:StartRoomTransition(index2, Direction.NO_DIRECTION, 3)
   Isaac.DebugString("Current room index: " .. tostring(index))
   Isaac.DebugString("Teleporting to room: " .. tostring(index2))
+end
+
+function RacingPlus:MegaBlast()
+  local game = Game()
+  local player = game:GetPlayer(0)
+  player:AnimateSad()
+  return true
 end
 
 function debugFunction()
@@ -1809,4 +1825,5 @@ RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, 43) -- Replacing Book of Sin (97)
 --RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Teleport, 59) -- Replacing Teleport (44) (TODO)
 --RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Undefined, 61) -- Replacing Undefined (324) (TODO)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        debugFunction, 235) -- Debug (custom item)

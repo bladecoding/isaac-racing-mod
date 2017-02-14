@@ -35,7 +35,7 @@ The changed rooms are as follows:
 * #14 (2 items)
 * #6 (1 item, 4 purple fires)
 
-The deleted rooms are as follows:
+The removed rooms are as follows:
 * #15 (2 soul hearts)
 * #13 (5 soul hearts)
 * #3 (3 soul hearts)
@@ -198,7 +198,7 @@ The changed rooms are as follows:
 
 ### TNT Barrel Fix
 
-One room has TNT barrels that will immediately explode if the player is holding Mom's Knife. These rooms have been fixed by replacing the barrels in question.
+Some rooms have TNT barrels that will immediately explode if the player is holding Mom's Knife. These rooms have been fixed by replacing the barrels in question.
 
 The changed rooms are as follows:
 * Basement: #748
