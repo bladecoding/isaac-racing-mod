@@ -562,6 +562,9 @@ function RacingPlus:ManuallyClearCurrentRoom()
   local room = game:GetRoom()
   local player = game:GetPlayer(0)
 
+  -- Log what we are doing for debugging purposes
+  Isaac.DebugString("Performing a fast-clear.")
+
   -- Set the room clear to true (so that it gets marked off on the minimap)
   room:SetClear(true)
 
