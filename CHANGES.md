@@ -81,13 +81,14 @@ Historically, most races have been unseeded with the goal of killing Blue Baby. 
 ### Seeded
 
 * All characters start with The Compass in addition to their other items.
-* Teleport! and Undefined are removed from all item pools.
+* Teleport! and Undefined are removed from all item pools. (These items are unseeded.)
 * The Cain's Eye trinket is removed from the game.
 
 ### Dark Room
 
 * 4 gold chests will now spawn at the beginning of the Dark Room (instead of red chests).
 * We Need To Go Deeper! is removed from all item pools.
+* If you use the Sacrifice Room teleport to the Dark Room, it will instead send you to the next floor.
 
 ### Mega Satan
 
@@ -103,6 +104,7 @@ Historically, most races have been unseeded with the goal of killing Blue Baby. 
 * The following items are also removed from all item pools, because they allow you to re-roll your build, which spoils the fun.
   * D4
   * D100
+  * D Infinity
 
 <br />
 

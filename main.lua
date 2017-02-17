@@ -6,6 +6,7 @@
 --[[
 
 TODO:
+- krampus doesn't do fastclear ???
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
@@ -88,6 +89,7 @@ local RNGCounter = {
 }
 local spriteTable = {}
 local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
+local cursedEyePlaceholder = Isaac.GetItemIdByName("Cursed Eye (Placeholder)")
 
 -- Welcome banner
 Isaac.DebugString("+----------------------+")
@@ -222,7 +224,7 @@ function timerUpdate()
   end
 
   local timerString = minutes .. ':' .. seconds
-  Isaac.RenderText(timerString, 17, 211, 0.7, 1.6, 0.2, 1.0) -- X, Y, R, G, B, A
+  Isaac.RenderText(timerString, 17, 211, 0.7, 1, 0.2, 1.0) -- X, Y, R, G, B, A
 end
 
 ---
@@ -484,6 +486,11 @@ function RacingPlus:RunInitForRace()
 
   -- Give the player extra starting items (which should only happen on a seeded race or a diversity race)
   for i = 1, #race.startingItems do
+    -- If the diversity race has not started yet, don't give the items
+    if race.rFormat == "diversity" and raceVars.started == false then
+      break
+    end
+
     -- Send a message to the item tracker to remove this item
     -- (otherwise, if we are using Glowing Hour Glass, it will record two of them)
     Isaac.DebugString("Removing collectible " .. tostring(race.startingItems[i]))
@@ -519,6 +526,21 @@ function RacingPlus:RunInitForRace()
     addTrinketBanList(TrinketType.TRINKET_CAINS_EYE) -- 59
   end
 
+  -- Add bans for diversity races
+  if race.rFormat == "diversity" then
+    addItemBanList(CollectibleType.COLLECTIBLE_MOMS_KNIFE) -- 114
+    addItemBanList(CollectibleType.COLLECTIBLE_EPIC_FETUS) -- 168
+    addItemBanList(CollectibleType.COLLECTIBLE_TECH_X) -- 395
+    addItemBanList(CollectibleType.COLLECTIBLE_D4) -- 284
+    addItemBanList(CollectibleType.COLLECTIBLE_D100) -- 283
+    addItemBanList(CollectibleType.COLLECTIBLE_DINF) -- 489
+  end
+
+  -- Add bans for The Lamb (Dark Room) races
+  if race.goal == "The Lamb" then
+    addItemBanList(CollectibleType.COLLECTIBLE_WE_NEED_GO_DEEPER) -- 84
+  end
+
   -- If we need to update the cache, mark to do it on the next game frame
   if raceVars.updateCache == 1 then
     raceVars.updateCache = 2
@@ -546,11 +568,26 @@ function RacingPlus:RaceStart()
     race.status = "in progress"
   end
 
+  -- Local variables
+  local game = Game()
+  local player = game:GetPlayer(0)
   Isaac.DebugString("Starting the race!")
-  debugFunction()
+
+  -- If this is a diversity race, give the player the extra starting items
+  if race.rFormat == "diversity" then
+    for i = 1, #race.startingItems do
+      -- Give the item; the second argument is charge amount, and the third argument is "AddConsumables"
+      player:AddCollectible(race.startingItems[i], 12, true)
+
+      -- Giving the player the item does not actually remove it from any of the pools, so we have to expliticly add it to the ban list
+      addItemBanList(race.startingItems[i])
+    end
+  end
 
   -- Load the clock sprite for the timer
-  spriteInit("clock", "clock")
+  if raceVars.startedTime ~= 0 then
+    spriteInit("clock", "clock")
+  end
 end
 
 -- This emulates what happens when you normally clear a room
@@ -1075,6 +1112,8 @@ function RacingPlus:NPCUpdate(aNpc)
   -- Only look for enemies that are dying
   if aNpc:IsDead() == false then
     return
+  else
+    Isaac.DebugString("Enemy died: " .. tostring(aNpc.Type) .. "." .. tostring(aNpc.Variant) .. "." .. tostring(aNpc.SubType))
   end
 
   -- Only look for enemies that can shut the doors
@@ -1128,18 +1167,16 @@ function RacingPlus:NPCUpdate(aNpc)
      aNpc.Type == 303 or -- Blister (303.0)
      aNpc.Type == EntityType.ENTITY_BROWNIE then -- 402
 
+    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", entity " .. tostring(aNpc.Type) .. "." .. tostring(aNpc.Variant) .. "." .. tostring(aNpc.SubType))
+    return
+  elseif aNpc:IsBoss() == false and aNpc:IsChampion() then
     -- The following champions split:
     -- 1) Dark red champion, collapses into a red flesh pile upon death and regenerates if not finished off (like a Globin)
     -- 2) Pulsing Green champion, spawns 2 versions of itself
     -- 3) Holy (white) champion, spawns 2 flies
     -- The Lua API doesn't allow us to check the specific champion type, so just make an exception for all champions
 
-    -- Sometimes, the exception will not work, so we need to know if this code block is being entered
-    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", entity type: " .. tostring(aNpc.Type))
-    return
-  elseif aNpc:IsBoss() == false and aNpc:IsChampion() then
-    -- Sometimes, the exception will not work, so we need to know if this code block is being entered
-    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", champion entity type: " .. tostring(aNpc.Type))
+    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", champion entity " .. tostring(aNpc.Type) .. "." .. tostring(aNpc.Variant) .. "." .. tostring(aNpc.SubType))
     return
   end
 
@@ -1555,14 +1592,16 @@ function RacingPlus:PostRender()
     elseif race.countdown == 1 then
       spriteInit("top", "1")
     elseif race.countdown == 0 and raceVars.started == false then -- The countdown has reached 0
-
-      spriteInit("top", "go") -- Draw the "Go!" graphic
-      RacingPlus:RaceStart()
-
       -- Set the start time to the number of frames that have elapsed since the game is open
       -- (this won't account for lag, but we are unable to call things like "os.clock()" without forcing the using to enable the "--luadebug" flag on the game)
       -- (we have to do this here so that the clock doesn't get reset if the player dies or resets)
       raceVars.startedTime = Isaac:GetFrameCount()
+
+      -- Draw the "Go!" graphic
+      spriteInit("top", "go") 
+
+      -- Start the race, if it isn't already
+      RacingPlus:RaceStart()
     end
 
     timerUpdate()
