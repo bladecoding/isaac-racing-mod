@@ -6,11 +6,10 @@
 --[[
 
 TODO:
-- krampus doesn't do fastclear ???
+- add coop baby check
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
-- recode greed's gullet
 - Fix unseeded Boss heart drops from Pin, etc. (and make it so that they drop during door opening)
 - Make Devil / Angel Rooms given in order and independent of floor
 
@@ -48,6 +47,8 @@ local run = {
   replacedItems         = {},
   replacedTrinkets      = {},
   placedKeys            = false,
+  keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
+  keeperHealthItems     = {},
 }
 local raceLoadNextFrame = false
 local race = { -- The table that gets updated from the "save.dat" file
@@ -89,7 +90,6 @@ local RNGCounter = {
 }
 local spriteTable = {}
 local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
-local cursedEyePlaceholder = Isaac.GetItemIdByName("Cursed Eye (Placeholder)")
 
 -- Welcome banner
 Isaac.DebugString("+----------------------+")
@@ -295,6 +295,8 @@ function RacingPlus:RunInit()
   run.replacedItems = {}
   run.replacedTrinkets = {}
   run.placedKeys = false
+  run.keeperBaseHearts = 4
+  run.keeperHealthItems = {}
 
   -- Reset some race variables that we keep track of per run
   raceVars.runInitForRaceDone = false
@@ -1066,6 +1068,114 @@ function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, Damag
 end
 
 function RacingPlus:EvaluateCache(player, cacheFlag)
+  if raceVars.character == "Keeper" and cacheFlag == CacheFlag.CACHE_RANGE then -- 8
+    local maxHearts = player:GetMaxHearts()
+    local hearts = player:GetHearts()
+    local coins = player:GetNumCoins()
+    local coinContainers = 0
+
+    -- Find out how many coin containers we should have
+    -- (2 is equal to 1 actual heart container)
+    if coins >= 99 then
+      coinContainers = 8
+    elseif coins >= 75 then
+      coinContainers = 6
+    elseif coins >= 50 then
+      coinContainers = 4
+    elseif coins >= 25 then
+      coinContainers = 2
+    end
+    local baseHearts = maxHearts - coinContainers
+
+    -- We have to add the range cache to all health up items
+    --   12  - Magic Mushroom (already has range cache)
+    --   15  - <3
+    --   16  - Raw Liver (gives 2 containers)
+    --   22  - Lunch
+    --   23  - Dinner
+    --   24  - Dessert
+    --   25  - Breakfast
+    --   26  - Rotten Meat
+    --   92  - Super Bandage
+    --   101 - The Halo (already has range cache)
+    --   119 - Blood Bag
+    --   121 - Odd Mushroom (Thick) (already has range cache)
+    --   129 - Bucket of Lard (gives 2 containers)
+    --   138 - Stigmata
+    --   176 - Stem Cells
+    --   182 - Sacred Heart (already has range cache)
+    --   184 - Holy Grail
+    --   189 - SMB Super Fan (already has range cache)
+    --   193 - Meat!
+    --   218 - Placenta
+    --   219 - Old Bandage
+    --   226 - Black Lotus
+    --   253 - Magic Scab
+    --   307 - Capricorn (already has range cache)
+    --   312 - Maggy's Bow
+    --   314 - Thunder Theighs
+    --   334 - The Body (gives 3 containers) 
+    --   342 - Blue Cap
+    --   346 - A Snack
+    --   354 - Crack Jacks
+    --   456 - Moldy Bread
+    local HPItemArray = {
+      12,  15,  16,  22,  23,
+      24,  25,  26,  92,  101,
+      119, 121, 129, 138, 176,
+      182, 184, 189, 193, 218,
+      219, 226, 253, 307, 312,
+      314, 334, 342, 346, 354,
+      456,
+    }
+    for i = 1, #HPItemArray do
+      if player:HasCollectible(HPItemArray[i]) then
+        if run.keeperHealthItems[HPItemArray[i]] == nil then
+          run.keeperHealthItems[HPItemArray[i]] = true
+
+          if baseHearts < 0 and
+             HPItemArray[i] == CollectibleType.COLLECTIBLE_BODY then -- 334
+
+            player:AddMaxHearts(6, true) -- Give 3 heart containers
+            Isaac.DebugString("Gave 3 heart containers to Keeper.")
+
+            -- Fill in the new containers
+            player:AddCoins(1)
+            player:AddCoins(1)
+            player:AddCoins(1)
+
+          elseif baseHearts < 2 and
+                 (HPItemArray[i] == CollectibleType.COLLECTIBLE_RAW_LIVER or -- 16
+                  HPItemArray[i] == CollectibleType.COLLECTIBLE_BUCKET_LARD or -- 129
+                  HPItemArray[i] == CollectibleType.COLLECTIBLE_BODY) then -- 334
+
+            player:AddMaxHearts(4, true) -- Give 2 heart containers
+            Isaac.DebugString("Gave 2 heart containers to Keeper.")
+
+            -- Fill in the new containers
+            player:AddCoins(1)
+            player:AddCoins(1)
+
+          elseif baseHearts < 4 then
+            player:AddMaxHearts(2, true) -- Give 1 heart container
+            Isaac.DebugString("Gave 1 heart container to Keeper.")
+
+            if HPItemArray[i] ~= CollectibleType.COLLECTIBLE_ODD_MUSHROOM_DAMAGE and -- 121
+               HPItemArray[i] ~= CollectibleType.COLLECTIBLE_OLD_BANDAGE then -- 219
+               
+              -- Fill in the new container
+              -- (Odd Mushroom (Thick) and Old Bandage do not give filled heart containers)
+              player:AddCoins(1)
+            end
+
+          else
+            Isaac.DebugString("Health up detected, but baseHearts are full.")
+          end
+        end
+      end
+    end
+  end
+
   if race == nil then
     return
   end
@@ -1146,7 +1256,7 @@ function RacingPlus:NPCUpdate(aNpc)
      aNpc.Type == EntityType.ENTITY_BLASTOCYST_MEDIUM or -- 75
      aNpc.Type == EntityType.ENTITY_BLASTOCYST_SMALL or -- 76
      aNpc.Type == EntityType.ENTITY_MOTER or -- 80
-     aNpc.Type == EntityType.ENTITY_FALLEN or -- 81
+     (aNpc.Type == EntityType.ENTITY_FALLEN and aNpc.Variant ~= 1) or -- 81 (we do want fast-clear to apply to Krampus)
      aNpc.Type == EntityType.ENTITY_GURGLE or -- 87
      aNpc.Type == EntityType.ENTITY_HANGER or -- 90
      aNpc.Type == EntityType.ENTITY_SWARMER or -- 91
@@ -1620,6 +1730,7 @@ function RacingPlus:PostUpdate()
   local room = game:GetRoom()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
+  local player = game:GetPlayer(0)
 
   --
   -- Keep track of the total amount of rooms cleared on this run thus far
@@ -1634,6 +1745,37 @@ function RacingPlus:PostUpdate()
       -- (we need to also check for the room seed to avoid the bug of the counter being incremented when bombing through a room with enemies into an empty room)
       run.roomsCleared = run.roomsCleared + 1
       Isaac.DebugString("Rooms cleared: " .. tostring(run.roomsCleared))
+    end
+  end
+
+  --
+  -- Keep track of our max hearts if we are Keeper (to fix the Greed's Gullet bug)
+  --
+
+  if raceVars.character == "Keeper" then
+    local maxHearts = player:GetMaxHearts()
+    local hearts = player:GetHearts()
+    local coins = player:GetNumCoins()
+    local coinContainers = 0
+
+    -- Find out how many coin containers we should have
+    -- (2 is equal to 1 actual heart container)
+    if coins >= 99 then
+      coinContainers = 8
+    elseif coins >= 75 then
+      coinContainers = 6
+    elseif coins >= 50 then
+      coinContainers = 4
+    elseif coins >= 25 then
+      coinContainers = 2
+    end
+    local baseHearts = maxHearts - coinContainers
+
+    if baseHearts ~= run.keeperBaseHearts then
+      -- Our health changed; we took a devil deal, took a health down pill, or went from 1 heart to 2 hearts
+      local heartsDiff = baseHearts - run.keeperBaseHearts
+      run.keeperBaseHearts = run.keeperBaseHearts + heartsDiff
+      Isaac.DebugString("Set new Keeper baseHearts to: " .. tostring(run.keeperBaseHearts) .. " (from detection, change was " .. tostring(heartsDiff) .. ")")
     end
   end
 
@@ -1724,6 +1866,15 @@ function RacingPlus:PostUpdate()
         end
       end
     end
+  end
+  
+  --
+  -- Check for co-op babies
+  --
+
+  local baby = game:GetPlayer(1) -- This can cause the game to crash if a 2nd coop baby is spawned and it gets put in a slot other than 1, but oh well
+  if baby:GetName() ~= player:GetName() then
+    player:TakeDamage(24, 0, EntityRef(player), 0) -- Damage, Flags, Source, DamageCountdown
   end
 end
 
@@ -1855,6 +2006,7 @@ function debugFunction()
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
 
+  Isaac.DebugString(tostring(player:GetMaxHearts()))
   -- Display the "use" animation
   return true
 end
