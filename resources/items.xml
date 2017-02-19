@@ -80,7 +80,7 @@
 	<active achievement="7" description="Reusable soul protection" gfx="Collectibles_078_BookOfRevelations.png" id="78" maxcharges="6" name="Book of Revelations" />
 	<passive cache="damage speed" description="DMG up" gfx="Collectibles_079_TheMark.png" id="79" name="The Mark" soulhearts="2" />
 	<passive cache="damage firedelay" description="DMG + tears up" devilprice="2" gfx="Collectibles_080_ThePact.png" id="80" name="The Pact" soulhearts="4" />
-	<familiar description="9 lives" gfx="Collectibles_081_DeadCat.png" id="81" name="Dead Cat" />
+	<familiar cache="range" description="9 lives" gfx="Collectibles_081_DeadCat.png" id="81" name="Dead Cat" />
 	<passive cache="flying speed" description="Demon wings" devilprice="2" gfx="Collectibles_082_LordOfThePit.png" id="82" name="Lord of the Pit" />
 	<active achievement="9" cache="speed damage" description="Temporary demon form" devilprice="2" gfx="Collectibles_083_TheNail.png" id="83" maxcharges="6" name="The Nail" />
 	<active description="Reusable level skip" gfx="Collectibles_084_WeNeedToGoDeeper.png" id="84" maxcharges="6" name="We Need To Go Deeper!" />
@@ -399,7 +399,7 @@
 	<passive achievement="202" description="The heavens will change you" gfx="Collectibles_392_Zodiac.png" id="392" name="Zodiac" />
 	<passive achievement="220" description="The kiss of death" gfx="Collectibles_393_SerpentsKiss.png" id="393" name="Serpent's Kiss" />
 	<passive description="Directed tears" gfx="Collectibles_394_Marked.png" id="394" name="Marked" cache="firedelay range" />
-	<passive description="Laser ring tears" gfx="Collectibles_395_TechX.png" id="395" name="Tech X" cache="weapon" />
+	<passive description="Laser ring tears" gfx="Collectibles_395_TechX.png" id="395" name="Tech X" cache="all" />
 	<active description="Short cutter" gfx="Collectibles_396_VentricleRazor.png" id="396" name="Ventricle Razor" />
 	<passive description="Controlled tears" gfx="Collectibles_397_TractorBeam.png" id="397" name="Tractor Beam" cache="firedelay tearflag range shotspeed" />
 	<passive description="Shrink shot!" gfx="Collectibles_398_GodsFlesh.png" id="398" name="God's Flesh" cache="tearcolor" />

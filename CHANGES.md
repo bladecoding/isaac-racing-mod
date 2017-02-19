@@ -15,13 +15,13 @@ In terms of what to change about the game, the mod has several goals, and attemp
 
 ### 1) Character Changes
 
-* All characters now start with the D6 (except for Keeper, who gets to keep his useful Wooden Penny).
+* All characters now start with the D6.
 * Certain characters have their health changed so that they can consistently take a devil deal.
   * Judas starts with half a red heart and half a soul heart.
   * Blue Baby starts with three and a half soul hearts.
   * Azazel starts with half a red heart and half a soul heart.
 * Judas starts with a bomb instead of 3 coins.
-* Keeper starts with Greed's Gullet, Duality, and 25 cents.
+* Keeper starts with Greed's Gullet, Duality, and 50 cents.
 
 ### 2) Devil Room & Angel Room Changes
 
@@ -63,6 +63,10 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 * Lil Chest is now seeded.
 * Book of Sin will now generate actual random pickups.
 * Mystery Sack will now generate actual random pickups.
+* Greed's Gullet will now properly work on Keeper. (As a side effect of this, the Strength card / the Magic Mushroom Liberty Cap proc will not give a coin container.)
+* Spawning a co-op baby will automatically kill you. (This is to prevent various co-op baby-related exploits.)
+* Fixed the bug where Tech X + Ipecac does not update the damage cache properly.
+* Fixed the bug where Tech X + Chocolate Milk does not update the tear cache properly.
 * Fixed the spelling of Humbling Bundle.
 * The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
 * The trapdoor or the beam of light on Womb 2 will be automatically removed depending on your run goal. By default, it will remove the trapdoor.

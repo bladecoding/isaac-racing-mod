@@ -6,7 +6,7 @@
 --[[
 
 TODO:
-- add coop baby check
+- check for exception list in room search for dead
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
@@ -436,6 +436,8 @@ function RacingPlus:CharacterInit()
 
     -- Grant an extra coin/heart container
     player:AddCoins(24) -- Keeper starts with 1 coin so we only need to give 24
+    player:AddCoins(1) -- This fills in the new heart container
+    player:AddCoins(25) -- Add a 2nd container
     player:AddCoins(1) -- This fills in the new heart container
   end
 end
@@ -1070,7 +1072,6 @@ end
 function RacingPlus:EvaluateCache(player, cacheFlag)
   if raceVars.character == "Keeper" and cacheFlag == CacheFlag.CACHE_RANGE then -- 8
     local maxHearts = player:GetMaxHearts()
-    local hearts = player:GetHearts()
     local coins = player:GetNumCoins()
     local coinContainers = 0
 
@@ -1096,6 +1097,7 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
     --   24  - Dessert
     --   25  - Breakfast
     --   26  - Rotten Meat
+    --   81  - Dead Cat
     --   92  - Super Bandage
     --   101 - The Halo (already has range cache)
     --   119 - Blood Bag
@@ -1121,19 +1123,27 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
     --   456 - Moldy Bread
     local HPItemArray = {
       12,  15,  16,  22,  23,
-      24,  25,  26,  92,  101,
-      119, 121, 129, 138, 176,
-      182, 184, 189, 193, 218,
-      219, 226, 253, 307, 312,
-      314, 334, 342, 346, 354,
-      456,
+      24,  25,  26,  81,  92,
+      101, 119, 121, 129, 138,
+      176, 182, 184, 189, 193,
+      218, 219, 226, 253, 307,
+      312, 314, 334, 342, 346,
+      354, 456,
     }
     for i = 1, #HPItemArray do
       if player:HasCollectible(HPItemArray[i]) then
         if run.keeperHealthItems[HPItemArray[i]] == nil then
           run.keeperHealthItems[HPItemArray[i]] = true
 
-          if baseHearts < 0 and
+          if HPItemArray[i] == CollectibleType.COLLECTIBLE_DEAD_CAT then -- 81
+            player:AddMaxHearts(-24, true) -- Remove all hearts
+            player:AddMaxHearts(2 + coinContainers, true) -- Give 1 heart container + whatever containers we should have from coins
+            player:AddHearts(24) -- This is needed because all the new heart containers will be empty
+            -- We have no way of knowing what the current health was before, because "player:GetHearts()" returns 0 at this point
+            -- So, just give them max health
+            Isaac.DebugString("Set 1 heart container to Keeper (Dead Cat).")
+
+          elseif baseHearts < 0 and
              HPItemArray[i] == CollectibleType.COLLECTIBLE_BODY then -- 334
 
             player:AddMaxHearts(6, true) -- Give 3 heart containers
@@ -1189,6 +1199,14 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
   end
 end
 
+function RacingPlus:InputAction(entity, inputHook, buttonAction)
+  --[[
+  if buttonAction == ButtonAction.ACTION_JOINMULTIPLAYER then -- 19
+    return false
+  end
+  --]]
+end
+
 -- Knight invulnerability frame removal and fast-clear stuff
 function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
@@ -1241,62 +1259,56 @@ function RacingPlus:NPCUpdate(aNpc)
     return
   end
 
-  -- We don't want to look for certain splitting enemies, so make an exception for those
-  if aNpc.Type == EntityType.ENTITY_GAPER or -- 10
-     aNpc.Type == EntityType.ENTITY_MULLIGAN or -- 16
-     aNpc.Type == EntityType.ENTITY_HIVE or -- 22
-     aNpc.Type == EntityType.ENTITY_GLOBIN or -- 24
-     aNpc.Type == EntityType.ENTITY_BOOMFLY or -- 25 (for Drowned Boom Flies)
-     aNpc.Type == EntityType.ENTITY_ENVY or -- 51
-     aNpc.Type == EntityType.ENTITY_MEMBRAIN or -- 57 (Mama Guts also counts as Membrain)
-     aNpc.Type == EntityType.ENTITY_FISTULA_BIG or -- 71 (Teratoma also counts as Fistula)
-     aNpc.Type == EntityType.ENTITY_FISTULA_MEDIUM or -- 72 (Teratoma also counts as Fistula)
-     aNpc.Type == EntityType.ENTITY_FISTULA_SMALL or -- 73 (Teratoma also counts as Fistula)
-     aNpc.Type == EntityType.ENTITY_BLASTOCYST_BIG or -- 74
-     aNpc.Type == EntityType.ENTITY_BLASTOCYST_MEDIUM or -- 75
-     aNpc.Type == EntityType.ENTITY_BLASTOCYST_SMALL or -- 76
-     aNpc.Type == EntityType.ENTITY_MOTER or -- 80
-     (aNpc.Type == EntityType.ENTITY_FALLEN and aNpc.Variant ~= 1) or -- 81 (we do want fast-clear to apply to Krampus)
-     aNpc.Type == EntityType.ENTITY_GURGLE or -- 87
-     aNpc.Type == EntityType.ENTITY_HANGER or -- 90
-     aNpc.Type == EntityType.ENTITY_SWARMER or -- 91
-     aNpc.Type == EntityType.ENTITY_BIGSPIDER or -- 94
-     aNpc.Type == EntityType.ENTITY_NEST or -- 205
-     aNpc.Type == EntityType.ENTITY_FATTY or -- 208 (for Pale Fatties)
-     aNpc.Type == EntityType.ENTITY_FAT_SACK or -- 209
-     aNpc.Type == EntityType.ENTITY_BLUBBER or -- 210
-     aNpc.Type == EntityType.ENTITY_SWINGER or -- 216
-     aNpc.Type == EntityType.ENTITY_SQUIRT or -- 220
-     aNpc.Type == EntityType.ENTITY_SKINNY or -- 226 (for Rotties)
-     aNpc.Type == EntityType.ENTITY_DINGA or -- 223
-     aNpc.Type == EntityType.ENTITY_GRUB or -- 239
-     aNpc.Type == EntityType.ENTITY_BLACK_GLOBIN or -- 278
-     aNpc.Type == EntityType.ENTITY_MEGA_CLOTTY or -- 282
-     aNpc.Type == EntityType.ENTITY_MOMS_DEAD_HAND or -- 287
-     aNpc.Type == EntityType.ENTITY_MEATBALL or -- 290
-     aNpc.Type == 303 or -- Blister (303.0)
-     aNpc.Type == EntityType.ENTITY_BROWNIE then -- 402
-
-    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", entity " .. tostring(aNpc.Type) .. "." .. tostring(aNpc.Variant) .. "." .. tostring(aNpc.SubType))
-    return
-  elseif aNpc:IsBoss() == false and aNpc:IsChampion() then
-    -- The following champions split:
-    -- 1) Dark red champion, collapses into a red flesh pile upon death and regenerates if not finished off (like a Globin)
-    -- 2) Pulsing Green champion, spawns 2 versions of itself
-    -- 3) Holy (white) champion, spawns 2 flies
-    -- The Lua API doesn't allow us to check the specific champion type, so just make an exception for all champions
-
-    Isaac.DebugString("Fast-clear exception for stage " .. tostring(stage) .. ", room " .. tostring(roomSeed) .. ", champion entity " .. tostring(aNpc.Type) .. "." .. tostring(aNpc.Variant) .. "." .. tostring(aNpc.SubType))
-    return
-  end
-
   -- Check all the (non-grid) entities in the room to see if anything is alive
   local allDead = true
   local entities = Isaac.GetRoomEntities()
   for i = 1, #entities do
     local npc = entities[i]:ToNPC()
     if npc ~= nil then
-      if npc:IsDead() == false and npc.CanShutDoors == true then
+      -- We don't fast-clear to apply to splitting enemies, so make an exception for those
+      -- (we want to look for these even if they are in a dying state)
+      if npc.Type == EntityType.ENTITY_GAPER or -- 10
+         npc.Type == EntityType.ENTITY_MULLIGAN or -- 16
+         npc.Type == EntityType.ENTITY_HIVE or -- 22
+         npc.Type == EntityType.ENTITY_GLOBIN or -- 24
+         (npc.Type == EntityType.ENTITY_BOOMFLY and npc.Variant == 2) or -- 25 (for Drowned Boom Flies)
+         npc.Type == EntityType.ENTITY_ENVY or -- 51
+         npc.Type == EntityType.ENTITY_MEMBRAIN or -- 57 (Mama Guts also counts as Membrain)
+         npc.Type == EntityType.ENTITY_FISTULA_BIG or -- 71 (Teratoma also counts as Fistula)
+         npc.Type == EntityType.ENTITY_FISTULA_MEDIUM or -- 72 (Teratoma also counts as Fistula)
+         npc.Type == EntityType.ENTITY_FISTULA_SMALL or -- 73 (Teratoma also counts as Fistula)
+         npc.Type == EntityType.ENTITY_BLASTOCYST_BIG or -- 74
+         npc.Type == EntityType.ENTITY_BLASTOCYST_MEDIUM or -- 75
+         npc.Type == EntityType.ENTITY_BLASTOCYST_SMALL or -- 76
+         npc.Type == EntityType.ENTITY_MOTER or -- 80
+         (npc.Type == EntityType.ENTITY_FALLEN and npc.Variant ~= 1) or -- 81 (fast-clear should apply to Krampus)
+         npc.Type == EntityType.ENTITY_GURGLE or -- 87
+         npc.Type == EntityType.ENTITY_HANGER or -- 90
+         npc.Type == EntityType.ENTITY_SWARMER or -- 91
+         npc.Type == EntityType.ENTITY_BIGSPIDER or -- 94
+         npc.Type == EntityType.ENTITY_NEST or -- 205
+         (npc.Type == EntityType.ENTITY_FATTY and npc.Variant == 1) or -- 208 (for Pale Fatties)
+         npc.Type == EntityType.ENTITY_FAT_SACK or -- 209
+         npc.Type == EntityType.ENTITY_BLUBBER or -- 210
+         npc.Type == EntityType.ENTITY_SWINGER or -- 216
+         npc.Type == EntityType.ENTITY_SQUIRT or -- 220
+         (npc.Type == EntityType.ENTITY_SKINNY and npc.Variant == 1) or -- 226 (for Rotties)
+         npc.Type == EntityType.ENTITY_DINGA or -- 223
+         npc.Type == EntityType.ENTITY_GRUB or -- 239
+         npc.Type == EntityType.ENTITY_BLACK_GLOBIN or -- 278
+         npc.Type == EntityType.ENTITY_MEGA_CLOTTY or -- 282
+         npc.Type == EntityType.ENTITY_MOMS_DEAD_HAND or -- 287
+         npc.Type == EntityType.ENTITY_MEATBALL or -- 290
+         npc.Type == 303 or -- There is no enum for Blister (303.0)
+         npc.Type == EntityType.ENTITY_BROWNIE or -- 402
+         (npc:IsBoss() == false and npc:IsChampion()) or -- This is a champion
+         (npc:IsDead() == false and npc.CanShutDoors == true) then -- This is an alive enemy
+
+        -- The following champions split:
+        -- 1) Pulsing Green champion, spawns 2 versions of itself
+        -- 2) Holy (white) champion, spawns 2 flies
+        -- The Lua API doesn't allow us to check the specific champion type, so just make an exception for all champions
+
         allDead = false
         break
       end
@@ -2014,6 +2026,7 @@ end
 -- Define callbacks
 RacingPlus:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, RacingPlus.EntityTakeDamage)
 RacingPlus:AddCallback(ModCallbacks.MC_EVALUATE_CACHE,  RacingPlus.EvaluateCache)
+RacingPlus:AddCallback(ModCallbacks.MC_INPUT_ACTION,    RacingPlus.InputAction)
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,      RacingPlus.NPCUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,     RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)
