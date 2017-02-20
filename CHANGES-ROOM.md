@@ -562,8 +562,8 @@ Certain rooms in the game were probably meant to be symmetrical, but one entity 
 * Basement: #581, #772
 * Cellar: #772
 * Caves: #28, #120, #416, #541
-* Womb: #705
-* Utero: #705
+* Womb: #705, #757
+* Utero: #705, #757
 * Cathedral: #23, #41
 * Monstro II: #1051
 * The Gate: #5042

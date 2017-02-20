@@ -49,6 +49,11 @@ local run = {
   placedKeys            = false,
   keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
   keeperHealthItems     = {},
+  spawnedCoop           = false,
+  schoolBagItem         = 0,
+  schoolBagMaxCharges   = 0,
+  schoolBagCharges      = 0,
+  schoolBagFrame        = 0, -- The frame at which the "cooldown" wears off and we can switch items again
 }
 local raceLoadNextFrame = false
 local race = { -- The table that gets updated from the "save.dat" file
@@ -89,6 +94,8 @@ local RNGCounter = {
   SackOfSacks,
 }
 local spriteTable = {}
+local spriteTableSchoolBag = {}
+local switchingItem = false
 local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
 
 -- Welcome banner
@@ -96,10 +103,10 @@ Isaac.DebugString("+----------------------+")
 Isaac.DebugString("| Racing+ initialized. |")
 Isaac.DebugString("+----------------------+")
 
----
---- Table subroutines
---- From: http://lua-users.org/wiki/TableUtils
----
+--
+-- Table subroutines
+-- From: http://lua-users.org/wiki/TableUtils
+--
 
 function tableval_to_str ( v )
   if "string" == type( v ) then
@@ -184,19 +191,72 @@ function spriteDisplay()
 
   -- Loop through all the sprites and render them
   for k, v in pairs(spriteTable) do
+    -- Position it
     local vec = Vector(0, 0)
-    if k == "top" then
+    local animationName = "Default"
+    local schoolBagX = 45
+    local schoolBagY = 50
+    if k == "top" then -- Pre-race messages and the countdown
       -- Make it be a little bit higher than the center of the screen
       vec = Isaac.WorldToRenderPosition(room:GetCenterPos(), false) -- The second argument is "ToRound"
       vec.Y = vec.Y - 80 -- Move it upwards from the center
     elseif k == "clock" then
       vec.X = 7.5 -- Move it below the Angel chance
-      vec.Y = 217.0
+      vec.Y = 217
     end
+
+    -- Draw it
     if v.sprite ~= nil then
-      spriteTable[k].sprite:SetFrame("Default", 0)
+      spriteTable[k].sprite:SetFrame(animationName, 0)
       spriteTable[k].sprite:RenderLayer(0, vec)
     end
+  end
+end
+
+function spriteDisplaySchoolBag()
+  if run.schoolBagItem == 0 then
+    return
+  end
+
+  -- Local variables
+  local itemX = 45;
+  local itemY = 50;
+  local barXOffset = 17
+  local barYOffset = 1
+  local itemVector = Vector(itemX, itemY)
+  local barVector = Vector(itemX + barXOffset, itemY + barYOffset)
+
+  -- Draw the item image
+  spriteTableSchoolBag.item:Update()
+  spriteTableSchoolBag.item:Render(itemVector, Vector(0, 0), Vector(0, 0))
+
+  if run.schoolBagMaxCharges ~= 0 then
+    -- Draw the charge bar 1/3 (the background)
+    spriteTableSchoolBag.barBack:Update()
+    spriteTableSchoolBag.barBack:Render(barVector, Vector(0, 0), Vector(0, 0))
+
+    -- Draw the charge bar 2/3 (the bar itself, clipped appropriately)
+    spriteTableSchoolBag.barMeter:Update()
+    local meterMultiplier
+    if run.schoolBagMaxCharges == 12 then
+      meterMultiplier = 2
+    elseif run.schoolBagMaxCharges == 6 then
+      meterMultiplier = 4
+    elseif run.schoolBagMaxCharges == 4 then
+      meterMultiplier = 6
+    elseif run.schoolBagMaxCharges == 3 then
+      meterMultiplier = 8
+    elseif run.schoolBagMaxCharges == 2 then
+      meterMultiplier = 12
+    elseif run.schoolBagMaxCharges == 1 then
+      meterMultiplier = 24
+    end
+    local meterClip = 26 - (run.schoolBagCharges * meterMultiplier)
+    spriteTableSchoolBag.barMeter:Render(barVector, Vector(0, meterClip), Vector(0, 0))
+
+    -- Draw the charge bar 3/3 (the segment lines on top)
+    spriteTableSchoolBag.barLines:Update()
+    spriteTableSchoolBag.barLines:Render(barVector, Vector(0, 0), Vector(0, 0))
   end
 end
 
@@ -227,9 +287,9 @@ function timerUpdate()
   Isaac.RenderText(timerString, 17, 211, 0.7, 1, 0.2, 1.0) -- X, Y, R, G, B, A
 end
 
----
---- Misc. subroutines
----
+--
+-- Misc. subroutines
+--
 
 function incrementRNG(seed)
   -- The initial RNG value recieved from the B1 floor RNG is a 10 digit integer
@@ -283,6 +343,7 @@ function RacingPlus:RunInit()
   local level = game:GetLevel()
   local player = game:GetPlayer(0)
   local seed = level:GetDungeonPlacementSeed()
+  local isaacFrameCount = Isaac:GetFrameCount()
 
   -- Reset some global variables that we keep track of per run
   run.roomsCleared = 0
@@ -297,6 +358,11 @@ function RacingPlus:RunInit()
   run.placedKeys = false
   run.keeperBaseHearts = 4
   run.keeperHealthItems = {}
+  run.spawnedCoop = false
+  run.schoolBagItem = 0
+  run.schoolBagMaxCharges = 0
+  run.schoolBagCharges = 0
+  run.schoolBagFrame = isaacFrameCount
 
   -- Reset some race variables that we keep track of per run
   raceVars.runInitForRaceDone = false
@@ -368,6 +434,9 @@ function RacingPlus:RunInit()
   -- Give us custom racing items, depending on the character (mostly just the D6)
   RacingPlus:CharacterInit()
 
+  -- Initialize School Bag sprites
+  RacingPlus:SchoolBagInit()
+
   -- Log the run beginning
   Isaac.DebugString("A new run has begun.")
 
@@ -384,11 +453,25 @@ function RacingPlus:CharacterInit()
   local playerType = player:GetPlayerType()
 
   -- Do character-specific actions
-  if playerType == PlayerType.PLAYER_JUDAS then -- 3
+  if playerType == PlayerType.PLAYER_MAGDALENA then -- 1
+    -- Add the School Bag item
+    run.schoolBagItem = CollectibleType.COLLECTIBLE_YUM_HEART -- 45
+    run.schoolBagCharges = 4
+
+  elseif playerType == PlayerType.PLAYER_JUDAS then -- 3
     -- Judas needs to be at half of a red heart
     player:AddHearts(-1)
 
-  elseif playerType == PlayerType.PLAYER_EVE then
+    -- Add the School Bag item
+    run.schoolBagItem = CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL -- 34
+    run.schoolBagCharges = 3
+
+  elseif playerType == PlayerType.PLAYER_XXX then -- 4
+    -- Add the School Bag item
+    run.schoolBagItem = CollectibleType.COLLECTIBLE_POOP -- 36
+    run.schoolBagCharges = 1
+
+  elseif playerType == PlayerType.PLAYER_EVE then -- 5
     -- Remove the existing items (they need to be in "players.xml" so that they get removed from item pools)
     player:RemoveCollectible(CollectibleType.COLLECTIBLE_D6) -- 105
     Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_D6))
@@ -404,11 +487,15 @@ function RacingPlus:CharacterInit()
     player:AddCollectible(CollectibleType.COLLECTIBLE_WHORE_OF_BABYLON, 0, true) -- 122
     player:AddCollectible(CollectibleType. COLLECTIBLE_DEAD_BIRD, 0, true) -- 117
 
-  elseif playerType == PlayerType.PLAYER_AZAZEL then
+     -- Add the School Bag item
+    run.schoolBagItem = CollectibleType.COLLECTIBLE_RAZOR_BLADE -- 126
+    run.schoolBagCharges = 0
+
+  elseif playerType == PlayerType.PLAYER_AZAZEL then -- 7
     -- Decrease his red hearts
     player:AddHearts(-1)
 
-  elseif playerType == PlayerType.PLAYER_EDEN then
+  elseif playerType == PlayerType.PLAYER_EDEN then -- 9
     -- Swap the random active item with the D6
     local activeItem = player:GetActiveItem()
     player:RemoveCollectible(activeItem)
@@ -418,7 +505,12 @@ function RacingPlus:CharacterInit()
     -- It would be nice to remove and re-add the passive item so that it appears in the correct order with the D6 first
     -- However, if the passive gives pickups (on the ground), then it would give double
 
-  elseif playerType == PlayerType.PLAYER_KEEPER then
+  elseif playerType == PlayerType.PLAYER_LILITH then -- 13
+    -- Add the School Bag item
+    run.schoolBagItem = CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS -- 357
+    run.schoolBagCharges = 4
+
+  elseif playerType == PlayerType.PLAYER_KEEPER then -- 14
     -- Remove the existing items (they need to be in "players.xml" so that they get removed from item pools)
     player:RemoveCollectible(CollectibleType.COLLECTIBLE_D6) -- 105
     Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_D6))
@@ -439,7 +531,162 @@ function RacingPlus:CharacterInit()
     player:AddCoins(1) -- This fills in the new heart container
     player:AddCoins(25) -- Add a 2nd container
     player:AddCoins(1) -- This fills in the new heart container
+
+  elseif playerType == PlayerType.PLAYER_APOLLYON then -- 15
+    -- Add the School Bag item
+    run.schoolBagItem = CollectibleType.COLLECTIBLE_VOID -- 477
+    run.schoolBagCharges = 6
   end
+end
+
+function RacingPlus:SchoolBagInit()
+  if run.schoolBagItem == 0 then
+    return
+  end
+
+  -- Find out how many charges this item has
+  local charges
+  if run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH or -- 441
+     run.schoolBagItem == CollectibleType.COLLECTIBLE_EDENS_SOUL or -- 490
+     run.schoolBagItem == CollectibleType.COLLECTIBLE_DELIRIOUS then -- 510
+  
+    run.schoolBagMaxCharges = 12
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BIBLE or -- 33
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_NECRONOMICON or -- 35
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MY_LITTLE_UNICORN or -- 77
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_REVELATIONS or -- 78
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_NAIL or -- 83
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_WE_NEED_GO_DEEPER or -- 84
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DECK_OF_CARDS or -- 85
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GAMEKID or -- 93
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOTTLE_PILLS or -- 102
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D6 or -- 105
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PINKING_SHEARS or -- 107
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PRAYER_CARD or -- 146
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRYSTAL_BALL or -- 158
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D20 or -- 166
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_WHITE_PONY or -- 181
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D100 or -- 283
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D4 or -- 284
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SECRETS or -- 287
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_FLUSH or -- 291
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SATANIC_BIBLE or -- 292
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_HEAD_OF_KRAMPUS or -- 293
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_ISAACS_TEARS or -- 323
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNDEFINED or -- 324
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BREATH_OF_LIFE or -- 326
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_VOID or -- 477
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SMELTER or -- 479
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CLICKER then -- 482
+
+    run.schoolBagMaxCharges = 6
+    
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_YUM_HEART or -- 45
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SIN or -- 97
+         run.schoolBagItem == 43 or -- The Book of Sin (Seeded)
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PONY or -- 130
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRACK_THE_SKY or -- 160
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLANK_CARD or -- 286
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLACEBO or -- 348
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS or -- 357
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D8 or -- 406
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT_2 or -- 419
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOX or -- 439
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D1 or -- 476
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DATAMINER or -- 481
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CROOKED_PENNY then -- 485
+
+    run.schoolBagMaxCharges = 4
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL or -- 34
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BRA or -- 39
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_PAD or -- 41
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOBS_ROTTEN_HEAD or -- 42
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SHADOWS or -- 58
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_ANARCHIST_COOKBOOK or -- 65
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTROS_TOOTH or -- 86
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTER_MANUAL or -- 123
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEST_FRIEND or -- 136
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_NOTCHED_AXE or -- 147
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_BEAN or -- 351
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_FRIEND_BALL or -- 382
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D12 or -- 386
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D7 then -- 437
+
+    run.schoolBagMaxCharges = 3
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_MR_BOOM or -- 37
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT or -- 44
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DOCTORS_REMOTE or -- 47
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SHOOP_DA_WHOOP or -- 49
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_LEMON_MISHAP or -- 56
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOURGLASS or -- 66
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DEAD_SEA_SCROLLS or -- 124
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SPIDER_BUTT or -- 171
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DADS_KEY or -- 175
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPATHY_BOOK or -- 192
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_SPIDERS or -- 288
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SCISSORS or -- 325
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_KIDNEY_BEAN or -- 421
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GLOWING_HOUR_GLASS or -- 422
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PAUSE or -- 478
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_COMPOST or -- 480
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DULL_RAZOR or -- 486
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_METRONOME or -- 488
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DINF then -- 489
+
+    run.schoolBagMaxCharges = 2
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_POOP or -- 36
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TAMMYS_HEAD or -- 38
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEAN or -- 111
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_FORGET_ME_NOW or -- 127
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_HEAD or -- 145
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D10 or -- 285
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNICORN_STUMP or -- 298
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_WOODEN_NICKEL or -- 349
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TEAR_DETONATOR or -- 383
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MINE_CRAFTER or -- 427
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLAN_C then -- 475
+
+    run.schoolBagMaxCharges = 1
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_KAMIKAZE or -- 40
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_RAZOR_BLADE or -- 126
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_PAW or -- 133
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_IV_BAG or -- 135
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_REMOTE_DETONATOR or -- 137
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PORTABLE_SLOT or -- 177
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLOOD_RIGHTS or -- 186
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOW_TO_JUMP or -- 282
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_JAR or -- 290
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MAGIC_FINGERS or -- 295
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CONVERTER or -- 296
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLUE_BOX or -- 297
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DIPLOPIA or -- 347
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_JAR_OF_FLIES then -- 434
+
+    run.schoolBagMaxCharges = 0
+  else
+    -- Somehow, a non-active item got put inside the School Bag
+    Isaac.DebugString("Error: A non-active item got put inside the School Bag.")
+    run.schoolBagMaxCharges = 0
+  end
+
+  -- Load the sprites
+  spriteTableSchoolBag.item = Sprite()
+  spriteTableSchoolBag.item:Load("gfx/schoolbag/" .. run.schoolBagItem .. ".anm2", true)
+  spriteTableSchoolBag.item:Play("Default", true)
+  spriteTableSchoolBag.barBack = Sprite()
+  spriteTableSchoolBag.barBack:Load("gfx/ui/ui_chargebar.anm2", true)
+  spriteTableSchoolBag.barBack:Play("BarEmpty", true)
+  spriteTableSchoolBag.barMeter = Sprite()
+  spriteTableSchoolBag.barMeter:Load("gfx/ui/ui_chargebar.anm2", true)
+  spriteTableSchoolBag.barMeter:Play("BarFull", true)
+  spriteTableSchoolBag.barLines = Sprite()
+  spriteTableSchoolBag.barLines:Load("gfx/ui/ui_chargebar.anm2", true)
+  spriteTableSchoolBag.barLines:Play("BarOverlay" .. tostring(run.schoolBagMaxCharges), true)
 end
 
 -- This occurs when first going into the game, after using the Glowing Hour Glass during race countdown, and after a reset occurs mid-race
@@ -603,9 +850,6 @@ function RacingPlus:ManuallyClearCurrentRoom()
   local room = game:GetRoom()
   local player = game:GetPlayer(0)
 
-  -- Log what we are doing for debugging purposes
-  Isaac.DebugString("Performing a fast-clear.")
-
   -- Set the room clear to true (so that it gets marked off on the minimap)
   room:SetClear(true)
 
@@ -702,8 +946,7 @@ function RacingPlus:ManuallyClearCurrentRoom()
 
     -- Add the correct amount of charges
     local currentCharge = player:GetActiveCharge()
-    local newCharge = currentCharge + chargesToAdd
-    player:SetActiveCharge(newCharge)
+    player:SetActiveCharge(currentCharge + chargesToAdd)
   end
 
   -- Play the sound effect for the door opening
@@ -1112,6 +1355,7 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
     --   218 - Placenta
     --   219 - Old Bandage
     --   226 - Black Lotus
+    --   230 - Abaddon
     --   253 - Magic Scab
     --   307 - Capricorn (already has range cache)
     --   312 - Maggy's Bow
@@ -1126,16 +1370,24 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
       24,  25,  26,  81,  92,
       101, 119, 121, 129, 138,
       176, 182, 184, 189, 193,
-      218, 219, 226, 253, 307,
-      312, 314, 334, 342, 346,
-      354, 456,
+      218, 219, 226, 230, 253,
+      307, 312, 314, 334, 342,
+      346, 354, 456,
     }
     for i = 1, #HPItemArray do
       if player:HasCollectible(HPItemArray[i]) then
         if run.keeperHealthItems[HPItemArray[i]] == nil then
           run.keeperHealthItems[HPItemArray[i]] = true
 
-          if HPItemArray[i] == CollectibleType.COLLECTIBLE_DEAD_CAT then -- 81
+          if HPItemArray[i] == CollectibleType.COLLECTIBLE_ABADDON then -- 230
+            player:AddMaxHearts(-24, true) -- Remove all hearts
+            player:AddMaxHearts(coinContainers, true) -- Give whatever containers we should have from coins
+            player:AddHearts(24) -- This is needed because all the new heart containers will be empty
+            -- We have no way of knowing what the current health was before, because "player:GetHearts()" returns 0 at this point
+            -- So, just give them max health
+            Isaac.DebugString("Set 0 heart containers to Keeper (Abaddon).")
+
+          elseif HPItemArray[i] == CollectibleType.COLLECTIBLE_DEAD_CAT then -- 81
             player:AddMaxHearts(-24, true) -- Remove all hearts
             player:AddMaxHearts(2 + coinContainers, true) -- Give 1 heart container + whatever containers we should have from coins
             player:AddHearts(24) -- This is needed because all the new heart containers will be empty
@@ -1199,14 +1451,6 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
   end
 end
 
-function RacingPlus:InputAction(entity, inputHook, buttonAction)
-  --[[
-  if buttonAction == ButtonAction.ACTION_JOINMULTIPLAYER then -- 19
-    return false
-  end
-  --]]
-end
-
 -- Knight invulnerability frame removal and fast-clear stuff
 function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
@@ -1240,8 +1484,6 @@ function RacingPlus:NPCUpdate(aNpc)
   -- Only look for enemies that are dying
   if aNpc:IsDead() == false then
     return
-  else
-    Isaac.DebugString("Enemy died: " .. tostring(aNpc.Type) .. "." .. tostring(aNpc.Variant) .. "." .. tostring(aNpc.SubType))
   end
 
   -- Only look for enemies that can shut the doors
@@ -1323,7 +1565,6 @@ end
 -- Check various things once per frame (this will fire while the floor/room is loading)
 function RacingPlus:PostRender()
   -- Local variables
-  local isaacFrameCount = Isaac:GetFrameCount()
   local game = Game()
   local gameFrameCount = game:GetFrameCount()
   local level = game:GetLevel()
@@ -1333,6 +1574,7 @@ function RacingPlus:PostRender()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
+  local isaacFrameCount = Isaac:GetFrameCount()
 
   -- Check to see if we are starting a run
   -- (this does not work if we put it in a PostUpdate callback because that only starts on the first frame of movement)
@@ -1538,9 +1780,16 @@ function RacingPlus:PostRender()
     end
   end
 
-  ---
-  --- Do race stuff / draw graphics
-  ---
+  --
+  -- Draw graphics
+  --
+
+  spriteDisplay()
+  spriteDisplaySchoolBag()
+
+  --
+  -- Do race stuff / draw graphics
+  --
 
   -- Decide if we need to check the "save.dat" file for updates from the Racing+ client
   if race == nil or -- Since we initialized it at the beginning of the program, the "race" table will only be nil if reading the "save.dat" file failed
@@ -1614,28 +1863,24 @@ function RacingPlus:PostRender()
   -- Check to see if we are on the BLCK CNDL Easter Egg
   if raceVars.blckCndlOn == false and raceVars.startedTime == 0 then
     spriteInit("top", "errorBlckCndl")
-    spriteDisplay()
     return
   end
 
   -- Check to see if we are on hard mode
   if raceVars.difficulty ~= 0 and raceVars.startedTime == 0 then
     spriteInit("top", "errorHardMode")
-    spriteDisplay()
     return
   end
 
   -- Check to see if we are on the right character
   if race.character ~= raceVars.character and raceVars.startedTime == 0 then
     spriteInit("top", "errorCharacter")
-    spriteDisplay()
     return
   end
 
   -- Check to see if we are on the right seed
   if race.seed ~= "-" and race.seed ~= race.currentSeed and raceVars.startedTime == 0 then
     spriteInit("top", "errorSeed")
-    spriteDisplay()
     return
   end
 
@@ -1717,7 +1962,7 @@ function RacingPlus:PostRender()
       -- Set the start time to the number of frames that have elapsed since the game is open
       -- (this won't account for lag, but we are unable to call things like "os.clock()" without forcing the using to enable the "--luadebug" flag on the game)
       -- (we have to do this here so that the clock doesn't get reset if the player dies or resets)
-      raceVars.startedTime = Isaac:GetFrameCount()
+      raceVars.startedTime = isaacFrameCount
 
       -- Draw the "Go!" graphic
       spriteInit("top", "go") 
@@ -1728,9 +1973,6 @@ function RacingPlus:PostRender()
 
     timerUpdate()
   end
-
-  -- Display all initialized sprites
-  spriteDisplay()
 end
 
 -- Check various things once per frame (this will not fire while the floor/room is loading)
@@ -1743,6 +1985,7 @@ function RacingPlus:PostUpdate()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
+  local isaacFrameCount = Isaac:GetFrameCount()
 
   --
   -- Keep track of the total amount of rooms cleared on this run thus far
@@ -1754,9 +1997,24 @@ function RacingPlus:PostUpdate()
 
     if clear == true then
       -- If the room just got changed to a cleared state, increment the total rooms cleared
-      -- (we need to also check for the room seed to avoid the bug of the counter being incremented when bombing through a room with enemies into an empty room)
       run.roomsCleared = run.roomsCleared + 1
       Isaac.DebugString("Rooms cleared: " .. tostring(run.roomsCleared))
+
+      -- Find out if we are in a 2x2 or L room
+      local chargesToAdd = 1
+      local shape = room:GetRoomShape()
+      if shape >= 8 then
+        chargesToAdd = 2
+      end
+
+      -- Give a charge to the player's School Bag item
+      if run.schoolBagItem ~= 0 and run.schoolBagCharges < run.schoolBagMaxCharges then
+        -- Add the correct amount of charges
+        run.schoolBagCharges = run.schoolBagCharges + chargesToAdd
+        if run.schoolBagCharges > run.schoolBagMaxCharges then
+          run.schoolBagCharges = run.schoolBagMaxCharges
+        end
+      end
     end
   end
 
@@ -1884,9 +2142,37 @@ function RacingPlus:PostUpdate()
   -- Check for co-op babies
   --
 
-  local baby = game:GetPlayer(1) -- This can cause the game to crash if a 2nd coop baby is spawned and it gets put in a slot other than 1, but oh well
-  if baby:GetName() ~= player:GetName() then
-    player:TakeDamage(24, 0, EntityRef(player), 0) -- Damage, Flags, Source, DamageCountdown
+  if run.spawnedCoop == false then
+    for i = 0, 3 do -- There are 4 possible players from 0 to 3
+      if Input.IsActionPressed(ButtonAction.ACTION_JOINMULTIPLAYER, i) then -- 19
+        run.spawnedCoop = true
+        player:ResetDamageCooldown()
+        player:TakeDamage(24, 0, EntityRef(player), 0) -- Damage, Flags, Source, DamageCountdown
+      end
+    end
+  end
+
+  --
+  -- Check for input for a School Bag switch
+  --
+
+  if isaacFrameCount >= run.schoolBagFrame and
+     Input.IsActionPressed(ButtonAction.ACTION_DROP, 0) then -- 11
+
+    -- Set a new cooldown period so that we can't spam this
+    run.schoolBagFrame = isaacFrameCount + 20 -- 1/3 of a second
+
+    -- Switch the items
+    local activeItem = player:GetActiveItem()
+    local activeCharge = player:GetActiveCharge()
+    if run.schoolBagItem == 0 then
+      player:RemoveCollectible(activeItem)
+    else
+      player:AddCollectible(run.schoolBagItem, run.schoolBagCharges, false)
+    end
+    run.schoolBagItem = activeItem
+    run.schoolBagCharges = activeCharge
+    RacingPlus:SchoolBagInit()
   end
 end
 
@@ -2007,18 +2293,10 @@ function debugFunction()
     end
   end
 
-  -- Find NPCs
-  Isaac.DebugString("NPCs:")
-  local entities = Isaac.GetRoomEntities()
-  for i = 1, #entities do
-    --Isaac.DebugString("type: " .. tostring(entities[i].Type))
-  end
-
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
 
-  Isaac.DebugString(tostring(player:GetMaxHearts()))
   -- Display the "use" animation
   return true
 end
@@ -2026,7 +2304,6 @@ end
 -- Define callbacks
 RacingPlus:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, RacingPlus.EntityTakeDamage)
 RacingPlus:AddCallback(ModCallbacks.MC_EVALUATE_CACHE,  RacingPlus.EvaluateCache)
-RacingPlus:AddCallback(ModCallbacks.MC_INPUT_ACTION,    RacingPlus.InputAction)
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,      RacingPlus.NPCUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,     RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)

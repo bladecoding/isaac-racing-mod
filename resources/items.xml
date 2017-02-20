@@ -231,7 +231,7 @@
 	<passive coins="3" description="My life savings" gfx="collectibles_227_piggybank.png" id="227" name="Piggy Bank" />
 	<passive cache="firedelay tearcolor" description="Fear shot" gfx="collectibles_228_momsperfume.png" id="228" name="Mom's Perfume" />
 	<passive cache="all" description="Charged attack" gfx="collectibles_229_monstroslung.png" id="229" name="Monstro's Lung" />
-	<passive achievement="128" cache="damage speed" description="Evil + DMG up + fear shot" devilprice="2" gfx="collectibles_230_abaddon.png" id="230" name="Abaddon" />
+	<passive achievement="128" cache="damage speed range" description="Evil + DMG up + fear shot" devilprice="2" gfx="collectibles_230_abaddon.png" id="230" name="Abaddon" />
 	<passive cache="tearcolor" description="Sticky feet..." gfx="collectibles_231_balloftar.png" id="231" name="Ball of Tar" />
 	<passive achievement="138" cache="speed" description="Let's slow this down a bit..." gfx="collectibles_232_stopwatch.png" id="232" name="Stop Watch" />
 	<passive cache="all" description="Orbiting tears + range up" gfx="collectibles_233_tinyplanet.png" id="233" name="Tiny Planet" />
