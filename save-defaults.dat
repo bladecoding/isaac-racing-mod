@@ -6,6 +6,7 @@ character="Judas",
 goal="Blue Baby",
 seed="-",
 startingItems={},
+schoolBag=false,
 currentSeed="-",
 countdown=0,
 }

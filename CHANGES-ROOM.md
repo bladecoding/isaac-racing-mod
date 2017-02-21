@@ -301,9 +301,9 @@ The changed rooms are as follows:
 
 <br />
 
-### Loki, Lokii, and Death Devil Room Fix
+### Devil Room Maneuverability Fix
 
-If the player is out of bombs and a Devil Room spawns on the top of the Loki or Loki II room filled with rocks, they will not be able to access it. If the Devil Room spawns on the bottom, the player will be forced to take the boss item in order to see the deal. This is also the case for the Death room filled with pits. This bug is fixed by moving/deleting the rocks/pits respectively.
+If the player is out of bombs and a Devil Room spawns in certain orientations of certain rooms, they will either not be able to access it or be forced to take the boss item in order to see the deal. This bug is fixed by moving/deleting the rocks/pits respectively.
 
 The changed rooms are as follows:
 * #2031 (Loki)
@@ -312,7 +312,7 @@ The changed rooms are as follows:
 
 <br />
 
-### Gurdy Maneuverability Fix
+### Floor Exit Maneuverability Fix
 
 In the Gurdy room filled with pits, the player is forced to take the boss item in order to exit the floor. This bug is fixed by deleting some pits to allow for more maneuverability.
 

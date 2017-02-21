@@ -1,6 +1,6 @@
 # Racing+ Mod Changes
 
-### Design Goals
+## Design Goals
 
 In terms of what to change about the game, the mod has several goals, and attempts to strike a balance between them. However, certain things are prioritized. The goals are listed below in order of importance:
 
@@ -85,6 +85,7 @@ Historically, most races have been unseeded with the goal of killing Blue Baby. 
 ### Seeded
 
 * All characters start with The Compass in addition to their other items.
+* All characters start with the School Bag (from Antibirth). (This is experimental and is subject to change.)
 * Teleport! and Undefined are removed from all item pools. (These items are unseeded.)
 * The Cain's Eye trinket is removed from the game.
 
@@ -101,14 +102,7 @@ Historically, most races have been unseeded with the goal of killing Blue Baby. 
 ### Diversity
 
 * Each racer starts with the same 3 random passive items. (This is in addition to the character's original passive items and resources.)
-* The following items are removed from all items pools, because they override tear effects. It is still possible to start with them as one of the 3 random passive items.
-  * Mom's Knife
-  * Epic Fetus
-  * Tech X
-* The following items are also removed from all item pools, because they allow you to re-roll your build, which spoils the fun.
-  * D4
-  * D100
-  * D Infinity
+* For additional information, see [the documentation for diversity races](https://github.com/Zamiell/isaac-racing-mod/blob/master/README-DIVERSITY.md).
 
 <br />
 

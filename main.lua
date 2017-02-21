@@ -64,6 +64,7 @@ local race = { -- The table that gets updated from the "save.dat" file
   goal            = "Blue Baby", -- Can be "Blue Baby", "The Lamb", "Mega Satan"
   seed            = "-",         -- Corresponds to the seed that is the race goal
   startingItems   = {},          -- The starting items for this race
+  schoolBag       = false,       -- Whether or not this race will have double active items
   currentSeed     = "-",         -- The seed of our current run (detected through the "log.txt" file)
   countdown       = -1,          -- This corresponds to the graphic to draw on the screen
 }
@@ -95,7 +96,7 @@ local RNGCounter = {
 }
 local spriteTable = {}
 local spriteTableSchoolBag = {}
-local switchingItem = false
+CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43
 local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
 
 -- Welcome banner
@@ -194,8 +195,6 @@ function spriteDisplay()
     -- Position it
     local vec = Vector(0, 0)
     local animationName = "Default"
-    local schoolBagX = 45
-    local schoolBagY = 50
     if k == "top" then -- Pre-race messages and the countdown
       -- Make it be a little bit higher than the center of the screen
       vec = Isaac.WorldToRenderPosition(room:GetCenterPos(), false) -- The second argument is "ToRound"
@@ -214,7 +213,7 @@ function spriteDisplay()
 end
 
 function spriteDisplaySchoolBag()
-  if run.schoolBagItem == 0 then
+  if race == nil or race.schoolBag == false or run.schoolBagItem == 0 then
     return
   end
 
@@ -434,9 +433,6 @@ function RacingPlus:RunInit()
   -- Give us custom racing items, depending on the character (mostly just the D6)
   RacingPlus:CharacterInit()
 
-  -- Initialize School Bag sprites
-  RacingPlus:SchoolBagInit()
-
   -- Log the run beginning
   Isaac.DebugString("A new run has begun.")
 
@@ -456,7 +452,7 @@ function RacingPlus:CharacterInit()
   if playerType == PlayerType.PLAYER_MAGDALENA then -- 1
     -- Add the School Bag item
     run.schoolBagItem = CollectibleType.COLLECTIBLE_YUM_HEART -- 45
-    run.schoolBagCharges = 4
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_YUM_HEART))
 
   elseif playerType == PlayerType.PLAYER_JUDAS then -- 3
     -- Judas needs to be at half of a red heart
@@ -464,12 +460,12 @@ function RacingPlus:CharacterInit()
 
     -- Add the School Bag item
     run.schoolBagItem = CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL -- 34
-    run.schoolBagCharges = 3
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL))
 
   elseif playerType == PlayerType.PLAYER_XXX then -- 4
     -- Add the School Bag item
     run.schoolBagItem = CollectibleType.COLLECTIBLE_POOP -- 36
-    run.schoolBagCharges = 1
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_POOP))
 
   elseif playerType == PlayerType.PLAYER_EVE then -- 5
     -- Remove the existing items (they need to be in "players.xml" so that they get removed from item pools)
@@ -479,17 +475,15 @@ function RacingPlus:CharacterInit()
     Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_WHORE_OF_BABYLON))
     player:RemoveCollectible(CollectibleType.COLLECTIBLE_DEAD_BIRD) -- 117
     Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_DEAD_BIRD))
-    player:RemoveCollectible(CollectibleType.COLLECTIBLE_RAZOR_BLADE) -- 126
-    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_RAZOR_BLADE))
 
     -- Add the D6, Whore of Babylon, and Dead Bird
     player:AddCollectible(CollectibleType.COLLECTIBLE_D6, 6, true) -- 105
     player:AddCollectible(CollectibleType.COLLECTIBLE_WHORE_OF_BABYLON, 0, true) -- 122
     player:AddCollectible(CollectibleType. COLLECTIBLE_DEAD_BIRD, 0, true) -- 117
 
-     -- Add the School Bag item
+    -- Add the School Bag item
     run.schoolBagItem = CollectibleType.COLLECTIBLE_RAZOR_BLADE -- 126
-    run.schoolBagCharges = 0
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_RAZOR_BLADE))
 
   elseif playerType == PlayerType.PLAYER_AZAZEL then -- 7
     -- Decrease his red hearts
@@ -498,17 +492,19 @@ function RacingPlus:CharacterInit()
   elseif playerType == PlayerType.PLAYER_EDEN then -- 9
     -- Swap the random active item with the D6
     local activeItem = player:GetActiveItem()
-    player:RemoveCollectible(activeItem)
-    Isaac.DebugString("Removing collectible " .. tostring(activeItem))
     player:AddCollectible(CollectibleType.COLLECTIBLE_D6, 6, true) -- 105
 
     -- It would be nice to remove and re-add the passive item so that it appears in the correct order with the D6 first
     -- However, if the passive gives pickups (on the ground), then it would give double
 
+    -- Add the School Bag item
+    run.schoolBagItem = activeItem
+    Isaac.DebugString("Removing collectible " .. tostring(activeItem))
+
   elseif playerType == PlayerType.PLAYER_LILITH then -- 13
     -- Add the School Bag item
     run.schoolBagItem = CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS -- 357
-    run.schoolBagCharges = 4
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS))
 
   elseif playerType == PlayerType.PLAYER_KEEPER then -- 14
     -- Remove the existing items (they need to be in "players.xml" so that they get removed from item pools)
@@ -535,158 +531,13 @@ function RacingPlus:CharacterInit()
   elseif playerType == PlayerType.PLAYER_APOLLYON then -- 15
     -- Add the School Bag item
     run.schoolBagItem = CollectibleType.COLLECTIBLE_VOID -- 477
-    run.schoolBagCharges = 6
-  end
-end
-
-function RacingPlus:SchoolBagInit()
-  if run.schoolBagItem == 0 then
-    return
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_VOID))
   end
 
-  -- Find out how many charges this item has
-  local charges
-  if run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH or -- 441
-     run.schoolBagItem == CollectibleType.COLLECTIBLE_EDENS_SOUL or -- 490
-     run.schoolBagItem == CollectibleType.COLLECTIBLE_DELIRIOUS then -- 510
-  
-    run.schoolBagMaxCharges = 12
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BIBLE or -- 33
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_NECRONOMICON or -- 35
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MY_LITTLE_UNICORN or -- 77
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_REVELATIONS or -- 78
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_NAIL or -- 83
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_WE_NEED_GO_DEEPER or -- 84
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DECK_OF_CARDS or -- 85
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GAMEKID or -- 93
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOTTLE_PILLS or -- 102
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D6 or -- 105
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PINKING_SHEARS or -- 107
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PRAYER_CARD or -- 146
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRYSTAL_BALL or -- 158
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D20 or -- 166
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_WHITE_PONY or -- 181
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D100 or -- 283
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D4 or -- 284
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SECRETS or -- 287
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_FLUSH or -- 291
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SATANIC_BIBLE or -- 292
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_HEAD_OF_KRAMPUS or -- 293
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_ISAACS_TEARS or -- 323
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNDEFINED or -- 324
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BREATH_OF_LIFE or -- 326
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_VOID or -- 477
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SMELTER or -- 479
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CLICKER then -- 482
-
-    run.schoolBagMaxCharges = 6
-    
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_YUM_HEART or -- 45
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SIN or -- 97
-         run.schoolBagItem == 43 or -- The Book of Sin (Seeded)
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PONY or -- 130
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRACK_THE_SKY or -- 160
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLANK_CARD or -- 286
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLACEBO or -- 348
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS or -- 357
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D8 or -- 406
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT_2 or -- 419
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOX or -- 439
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D1 or -- 476
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DATAMINER or -- 481
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CROOKED_PENNY then -- 485
-
-    run.schoolBagMaxCharges = 4
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL or -- 34
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BRA or -- 39
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_PAD or -- 41
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOBS_ROTTEN_HEAD or -- 42
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SHADOWS or -- 58
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_ANARCHIST_COOKBOOK or -- 65
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTROS_TOOTH or -- 86
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTER_MANUAL or -- 123
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEST_FRIEND or -- 136
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_NOTCHED_AXE or -- 147
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_BEAN or -- 351
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_FRIEND_BALL or -- 382
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D12 or -- 386
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D7 then -- 437
-
-    run.schoolBagMaxCharges = 3
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_MR_BOOM or -- 37
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT or -- 44
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DOCTORS_REMOTE or -- 47
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SHOOP_DA_WHOOP or -- 49
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_LEMON_MISHAP or -- 56
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOURGLASS or -- 66
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DEAD_SEA_SCROLLS or -- 124
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SPIDER_BUTT or -- 171
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DADS_KEY or -- 175
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPATHY_BOOK or -- 192
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_SPIDERS or -- 288
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SCISSORS or -- 325
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_KIDNEY_BEAN or -- 421
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GLOWING_HOUR_GLASS or -- 422
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PAUSE or -- 478
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_COMPOST or -- 480
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DULL_RAZOR or -- 486
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_METRONOME or -- 488
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DINF then -- 489
-
-    run.schoolBagMaxCharges = 2
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_POOP or -- 36
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TAMMYS_HEAD or -- 38
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEAN or -- 111
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_FORGET_ME_NOW or -- 127
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_HEAD or -- 145
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D10 or -- 285
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNICORN_STUMP or -- 298
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_WOODEN_NICKEL or -- 349
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TEAR_DETONATOR or -- 383
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MINE_CRAFTER or -- 427
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLAN_C then -- 475
-
-    run.schoolBagMaxCharges = 1
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_KAMIKAZE or -- 40
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_RAZOR_BLADE or -- 126
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_PAW or -- 133
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_IV_BAG or -- 135
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_REMOTE_DETONATOR or -- 137
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PORTABLE_SLOT or -- 177
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLOOD_RIGHTS or -- 186
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOW_TO_JUMP or -- 282
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_JAR or -- 290
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MAGIC_FINGERS or -- 295
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CONVERTER or -- 296
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLUE_BOX or -- 297
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DIPLOPIA or -- 347
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_JAR_OF_FLIES then -- 434
-
-    run.schoolBagMaxCharges = 0
-  else
-    -- Somehow, a non-active item got put inside the School Bag
-    Isaac.DebugString("Error: A non-active item got put inside the School Bag.")
-    run.schoolBagMaxCharges = 0
+  -- Make sure that the School Bag item is maximally charged
+  if run.schoolBagItem ~= 0 then
+    run.schoolBagCharges = 12 -- 12 is the maximum amount of charges that an item can have
   end
-
-  -- Load the sprites
-  spriteTableSchoolBag.item = Sprite()
-  spriteTableSchoolBag.item:Load("gfx/schoolbag/" .. run.schoolBagItem .. ".anm2", true)
-  spriteTableSchoolBag.item:Play("Default", true)
-  spriteTableSchoolBag.barBack = Sprite()
-  spriteTableSchoolBag.barBack:Load("gfx/ui/ui_chargebar.anm2", true)
-  spriteTableSchoolBag.barBack:Play("BarEmpty", true)
-  spriteTableSchoolBag.barMeter = Sprite()
-  spriteTableSchoolBag.barMeter:Load("gfx/ui/ui_chargebar.anm2", true)
-  spriteTableSchoolBag.barMeter:Play("BarFull", true)
-  spriteTableSchoolBag.barLines = Sprite()
-  spriteTableSchoolBag.barLines:Load("gfx/ui/ui_chargebar.anm2", true)
-  spriteTableSchoolBag.barLines:Play("BarOverlay" .. tostring(run.schoolBagMaxCharges), true)
 end
 
 -- This occurs when first going into the game, after using the Glowing Hour Glass during race countdown, and after a reset occurs mid-race
@@ -698,6 +549,17 @@ function RacingPlus:RunInitForRace()
   else
     Isaac.DebugString("Doing run initialization for the race.")
     raceVars.runInitForRaceDone = true
+  end
+
+  -- Local variables
+  local game = Game()
+  local player = game:GetPlayer(0)
+  local inBanList
+
+  -- Do School Bag related initiailization
+  if race.schoolBag == true then
+    RacingPlus:SchoolBagInit()
+    player:FullCharge()
   end
 
   -- If we are not in a race, don't do anything special
@@ -729,11 +591,6 @@ function RacingPlus:RunInitForRace()
     Isaac.DebugString("Race error: On the wrong seed.")
     return
   end
-
-  -- Local variables
-  local game = Game()
-  local player = game:GetPlayer(0)
-  local inBanList
 
   -- Give the player extra starting items (which should only happen on a seeded race or a diversity race)
   for i = 1, #race.startingItems do
@@ -808,6 +665,157 @@ function RacingPlus:RunInitForRace()
     game:Spawn(EntityType.ENTITY_GAPING_MAW, 0, Vector(280, 360), Vector(0,0), nil, 0, 0)
     game:Spawn(EntityType.ENTITY_GAPING_MAW, 0, Vector(360, 360), Vector(0,0), nil, 0, 0)
   end
+end
+
+function RacingPlus:SchoolBagInit()
+  if race == nil or race.schoolBag == false or run.schoolBagItem == 0 then
+    return
+  end
+
+  -- Find out how many charges this item has
+  local charges
+  if run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH or -- 441
+     run.schoolBagItem == CollectibleType.COLLECTIBLE_EDENS_SOUL or -- 490
+     run.schoolBagItem == CollectibleType.COLLECTIBLE_DELIRIOUS then -- 510
+  
+    run.schoolBagMaxCharges = 12
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BIBLE or -- 33
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_NECRONOMICON or -- 35
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MY_LITTLE_UNICORN or -- 77
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_REVELATIONS or -- 78
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_NAIL or -- 83
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_WE_NEED_GO_DEEPER or -- 84
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DECK_OF_CARDS or -- 85
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GAMEKID or -- 93
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOTTLE_PILLS or -- 102
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D6 or -- 105
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PINKING_SHEARS or -- 107
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PRAYER_CARD or -- 146
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRYSTAL_BALL or -- 158
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D20 or -- 166
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_WHITE_PONY or -- 181
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D100 or -- 283
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D4 or -- 284
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SECRETS or -- 287
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_FLUSH or -- 291
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SATANIC_BIBLE or -- 292
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_HEAD_OF_KRAMPUS or -- 293
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_ISAACS_TEARS or -- 323
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNDEFINED or -- 324
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BREATH_OF_LIFE or -- 326
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_VOID or -- 477
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SMELTER or -- 479
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CLICKER then -- 482
+
+    run.schoolBagMaxCharges = 6
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_YUM_HEART or -- 45
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SIN or -- 97
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED or -- 43
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PONY or -- 130
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRACK_THE_SKY or -- 160
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLANK_CARD or -- 286
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLACEBO or -- 348
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS or -- 357
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D8 or -- 406
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT_2 or -- 419
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOX or -- 439
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D1 or -- 476
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DATAMINER or -- 481
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CROOKED_PENNY then -- 485
+
+    run.schoolBagMaxCharges = 4
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL or -- 34
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BRA or -- 39
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_PAD or -- 41
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOBS_ROTTEN_HEAD or -- 42
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SHADOWS or -- 58
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_ANARCHIST_COOKBOOK or -- 65
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTROS_TOOTH or -- 86
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTER_MANUAL or -- 123
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEST_FRIEND or -- 136
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_NOTCHED_AXE or -- 147
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_BEAN or -- 351
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_FRIEND_BALL or -- 382
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D12 or -- 386
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D7 then -- 437
+
+    run.schoolBagMaxCharges = 3
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_MR_BOOM or -- 37
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT or -- 44
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DOCTORS_REMOTE or -- 47
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SHOOP_DA_WHOOP or -- 49
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_LEMON_MISHAP or -- 56
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOURGLASS or -- 66
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DEAD_SEA_SCROLLS or -- 124
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SPIDER_BUTT or -- 171
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DADS_KEY or -- 175
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPATHY_BOOK or -- 192
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_SPIDERS or -- 288
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_SCISSORS or -- 325
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_KIDNEY_BEAN or -- 421
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GLOWING_HOUR_GLASS or -- 422
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PAUSE or -- 478
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_COMPOST or -- 480
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DULL_RAZOR or -- 486
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_METRONOME or -- 488
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DINF then -- 489
+
+    run.schoolBagMaxCharges = 2
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_POOP or -- 36
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TAMMYS_HEAD or -- 38
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEAN or -- 111
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_FORGET_ME_NOW or -- 127
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_HEAD or -- 145
+         run.schoolBagItem == 235 or -- Debug
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_D10 or -- 285
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNICORN_STUMP or -- 298
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_WOODEN_NICKEL or -- 349
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_TEAR_DETONATOR or -- 383
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MINE_CRAFTER or -- 427
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLAN_C then -- 475
+
+    run.schoolBagMaxCharges = 1
+
+  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_KAMIKAZE or -- 40
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_RAZOR_BLADE or -- 126
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_PAW or -- 133
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_IV_BAG or -- 135
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_REMOTE_DETONATOR or -- 137
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_PORTABLE_SLOT or -- 177
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLOOD_RIGHTS or -- 186
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOW_TO_JUMP or -- 282
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_JAR or -- 290
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_MAGIC_FINGERS or -- 295
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_CONVERTER or -- 296
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLUE_BOX or -- 297
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DIPLOPIA or -- 347
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_JAR_OF_FLIES then -- 434
+
+    run.schoolBagMaxCharges = 0
+  else
+    -- Somehow, a non-active item got put inside the School Bag
+    Isaac.DebugString("Error: A non-active item got put inside the School Bag.")
+    run.schoolBagMaxCharges = 0
+  end
+
+  -- Load the sprites
+  spriteTableSchoolBag.item = Sprite()
+  spriteTableSchoolBag.item:Load("gfx/schoolbag/" .. run.schoolBagItem .. ".anm2", true)
+  spriteTableSchoolBag.item:Play("Default", true)
+  spriteTableSchoolBag.barBack = Sprite()
+  spriteTableSchoolBag.barBack:Load("gfx/ui/ui_chargebar.anm2", true)
+  spriteTableSchoolBag.barBack:Play("BarEmpty", true)
+  spriteTableSchoolBag.barMeter = Sprite()
+  spriteTableSchoolBag.barMeter:Load("gfx/ui/ui_chargebar.anm2", true)
+  spriteTableSchoolBag.barMeter:Play("BarFull", true)
+  spriteTableSchoolBag.barLines = Sprite()
+  spriteTableSchoolBag.barLines:Load("gfx/ui/ui_chargebar.anm2", true)
+  spriteTableSchoolBag.barLines:Play("BarOverlay" .. tostring(run.schoolBagMaxCharges), true)
 end
 
 function RacingPlus:RaceStart()
@@ -1985,6 +1993,7 @@ function RacingPlus:PostUpdate()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
+  local playerSprite = player:GetSprite()
   local isaacFrameCount = Isaac:GetFrameCount()
 
   --
@@ -2084,55 +2093,56 @@ function RacingPlus:PostUpdate()
       local bomb = entities[i]:ToBomb()
       bomb:SetExplosionCountdown(59) -- 60 minus 1 because we start at frame 1
       -- Note that game physics occur at 30 frames per second instead of 60
+    end
 
-    else
-      --
-      -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts
-      --
+    --
+    -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts
+    --
 
-      local npc = entities[i]:ToNPC()
-      if npc ~= nil then
-        if npc.Type == EntityType.ENTITY_KNIGHT or -- 41
-           npc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
-           npc.Type == EntityType.ENTITY_BONE_KNIGHT then -- 283
+    local npc = entities[i]:ToNPC()
+    if npc ~= nil then
+      if npc.Type == EntityType.ENTITY_KNIGHT or -- 41
+         npc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
+         npc.Type == EntityType.ENTITY_BONE_KNIGHT then -- 283
 
-          -- Knights, Selfless Knights, Floating Knights, and Bone Knights
-          if npc.FrameCount == 4 then
-            -- Changing the NPC's state triggers the invulnerability removal in the next frame
-            npc.State = 4
+        -- Knights, Selfless Knights, Floating Knights, and Bone Knights
+        -- Add their position to the table so that we can keep track of it on future frames
+        if run.currentKnights[npc.Index] == nil then
+          run.currentKnights[npc.Index] = {
+           pos = npc.Position,
+           damaged = false,
+         }
+        end
 
-            -- Manually setting visible to true allows us to disable the invulnerability 1 frame earlier
-            -- (this is to compensate for having only post update hooks)
-            npc.Visible = true
+        if npc.FrameCount == 4 then
+          -- Changing the NPC's state triggers the invulnerability removal in the next frame
+          npc.State = 4
 
-            -- Add this Knight's position to the table so that we can keep track of it on future frames
-            run.currentKnights[npc.Index] = {
-              pos = npc.Position,
-              damaged = false,
-            }
-          end
+          -- Manually setting visible to true allows us to disable the invulnerability 1 frame earlier
+          -- (this is to compensate for having only post update hooks)
+          npc.Visible = true
+        end
 
-        elseif npc.Type == EntityType.ENTITY_EYE then -- 60
-          -- Eyes and Blootshot Eyes
-          if npc.FrameCount == 4 then
-            npc:GetSprite():SetFrame("Eye Opened", 0)
-            npc.State = 3
-            npc.Visible = true
-          end
+      elseif npc.Type == EntityType.ENTITY_EYE then -- 60
+        -- Eyes and Blootshot Eyes
+        if npc.FrameCount == 4 then
+          npc:GetSprite():SetFrame("Eye Opened", 0)
+          npc.State = 3
+          npc.Visible = true
+        end
 
-          -- Prevent the Eye from shooting for 30 frames
-          if (npc.State == 4 or npc.State == 8) and npc.FrameCount < 31 then
-            npc.StateFrame = 0
-          end
+        -- Prevent the Eye from shooting for 30 frames
+        if (npc.State == 4 or npc.State == 8) and npc.FrameCount < 31 then
+          npc.StateFrame = 0
+        end
 
-        elseif npc.Type == EntityType.ENTITY_WIZOOB or -- 219
-               npc.Type == EntityType.ENTITY_RED_GHOST then -- 285
+      elseif npc.Type == EntityType.ENTITY_WIZOOB or -- 219
+             npc.Type == EntityType.ENTITY_RED_GHOST then -- 285
 
-          -- Wizoobs and Red Ghosts
-          if npc.FrameCount == 1 then -- (most NPCs are only visable on the 4th frame, but these are visible immediately)
-            -- The ghost is set to ENTCOLL_NONE until the first reappearance
-            npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL
-          end
+        -- Wizoobs and Red Ghosts
+        if npc.FrameCount == 1 then -- (most NPCs are only visable on the 4th frame, but these are visible immediately)
+          -- The ghost is set to ENTCOLL_NONE until the first reappearance
+          npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL
         end
       end
     end
@@ -2146,8 +2156,9 @@ function RacingPlus:PostUpdate()
     for i = 0, 3 do -- There are 4 possible players from 0 to 3
       if Input.IsActionPressed(ButtonAction.ACTION_JOINMULTIPLAYER, i) then -- 19
         run.spawnedCoop = true
-        player:ResetDamageCooldown()
+        player:ResetDamageCooldown() -- Get rid of their invulnerability frames, if any
         player:TakeDamage(24, 0, EntityRef(player), 0) -- Damage, Flags, Source, DamageCountdown
+        -- This should kill them instantly
       end
     end
   end
@@ -2156,23 +2167,40 @@ function RacingPlus:PostUpdate()
   -- Check for input for a School Bag switch
   --
 
-  if isaacFrameCount >= run.schoolBagFrame and
-     Input.IsActionPressed(ButtonAction.ACTION_DROP, 0) then -- 11
+  if race ~= nil and
+     race.schoolBag == true and
+     isaacFrameCount >= run.schoolBagFrame then
 
-    -- Set a new cooldown period so that we can't spam this
-    run.schoolBagFrame = isaacFrameCount + 20 -- 1/3 of a second
-
-    -- Switch the items
-    local activeItem = player:GetActiveItem()
-    local activeCharge = player:GetActiveCharge()
-    if run.schoolBagItem == 0 then
-      player:RemoveCollectible(activeItem)
-    else
-      player:AddCollectible(run.schoolBagItem, run.schoolBagCharges, false)
+    if playerSprite:IsPlaying("Pickup") or
+       playerSprite:IsPlaying("PickupWalkDown") or
+       playerSprite:IsPlaying("PickupWalkLeft") or
+       playerSprite:IsPlaying("PickupWalkUp") or
+       playerSprite:IsPlaying("PickupWalkRight") then
+       
+       run.schoolBagFrame = isaacFrameCount + 69 -- The animation is only 42 frames long, but if we delay anything less than 69, it will hit twice
+       Isaac.DebugString("Delaying to frame " .. tostring(run.schoolBagFrame) .. ".")
+       return
     end
-    run.schoolBagItem = activeItem
-    run.schoolBagCharges = activeCharge
-    RacingPlus:SchoolBagInit()
+
+    for i = 0, 3 do -- There are 4 possible players from 0 to 3
+      if Input.IsActionPressed(ButtonAction.ACTION_DROP, i) then -- 11
+        Isaac.DebugString("Used School Bag (on frame " .. tostring(isaacFrameCount) .. ").")
+        -- Set a new cooldown period so that we can't spam this
+        run.schoolBagFrame = isaacFrameCount + 20 -- 1/3 of a second
+
+        -- Switch the items
+        local activeItem = player:GetActiveItem()
+        local activeCharge = player:GetActiveCharge()
+        if run.schoolBagItem == 0 then
+          player:RemoveCollectible(activeItem)
+        else
+          player:AddCollectible(run.schoolBagItem, run.schoolBagCharges, false)
+        end
+        run.schoolBagItem = activeItem
+        run.schoolBagCharges = activeCharge
+        RacingPlus:SchoolBagInit()
+      end
+    end
   end
 end
 
@@ -2307,7 +2335,7 @@ RacingPlus:AddCallback(ModCallbacks.MC_EVALUATE_CACHE,  RacingPlus.EvaluateCache
 RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,      RacingPlus.NPCUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,     RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, 43) -- Replacing Book of Sin (97)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
 --RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Teleport, 59) -- Replacing Teleport (44) (TODO)
 --RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Undefined, 61) -- Replacing Undefined (324) (TODO)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
