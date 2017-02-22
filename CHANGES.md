@@ -57,6 +57,7 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 ## Other Minor Bug Fixes & Quality of Life Changes
 
 * Void Portals will automatically be deleted.
+* If you get the 5% Void teleport after defeating Mom, you will be automatically given the Polaroid and be sent to Womb 1.
 * Some items with no effect at all are removed:
   * the Karma trinket (all Donation Machines are removed on the BLCK CNDL seed)
   * the Amnesia pill (all curses are removed on the BLCK CNDL seed)
@@ -70,10 +71,11 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 * Book of Sin will now generate actual random pickups.
 * Mystery Sack will now generate actual random pickups.
 * Greed's Gullet will now properly work on Keeper. (As a side effect of this, the Strength card / the Magic Mushroom Liberty Cap proc will not give a coin container.)
-* Spawning a co-op baby will automatically kill you. (This is to prevent various co-op baby-related exploits.)
 * Fixed the bug where Tech X + Ipecac does not update the damage cache properly.
 * Fixed the bug where Tech X + Chocolate Milk does not update the tear cache properly.
 * Fixed the spelling of Humbling Bundle.
+* Spawning a co-op baby will automatically kill the baby, return the heart to you, and delete all item pedestals in the room. (This is to prevent various co-op baby-related exploits.)
+* Teleporting to the Dark Room via a Sacrifice Room will instead send you to the next floor. (This is to prevent exploiting races to The Lamb or Mega Satan.)
 * The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
 * The trapdoor or the beam of light on Womb 2 will be automatically removed depending on your run goal. By default, it will remove the trapdoor.
 
@@ -86,7 +88,7 @@ C:\Users\[YourUsername]\Documents\My Games\Binding of Isaac Afterbirth+ Mods\rac
 
 ## Additional Changes for Custom Rulesets
 
-Historically, most races have been unseeded with the goal of killing Blue Baby. However, there are other rulesets used:
+Historically, most speedruns and races have been unseeded with the goal of killing Blue Baby. However, there are other rulesets used:
 
 ### Seeded
 
@@ -95,20 +97,19 @@ Historically, most races have been unseeded with the goal of killing Blue Baby. 
 * Teleport! and Undefined are removed from all item pools. (These items are unseeded.)
 * The Cain's Eye trinket is removed from the game.
 
-### Dark Room
-
-* 4 gold chests will now spawn at the beginning of the Dark Room (instead of red chests).
-* We Need To Go Deeper! is removed from all item pools.
-* If you use the Sacrifice Room teleport to the Dark Room, it will instead send you to the next floor.
-
-### Mega Satan
-
-* Pedestals for Key Piece 1 and Key Piece 2 are placed next to the Mega Satan door on both The Chest and the Dark Room.
-
 ### Diversity
 
 * Each racer starts with the same 3 random passive items. (This is in addition to the character's original passive items and resources.)
 * For additional information, see [the documentation for diversity races](https://github.com/Zamiell/isaac-racing-mod/blob/master/README-DIVERSITY.md).
+
+### Dark Room
+
+* 4 gold chests will now spawn at the beginning of the Dark Room (instead of red chests).
+* We Need To Go Deeper! is removed from all item pools.
+
+### Mega Satan
+
+* Pedestals for Key Piece 1 and Key Piece 2 are placed next to the Mega Satan door on both The Chest and the Dark Room.
 
 <br />
 
