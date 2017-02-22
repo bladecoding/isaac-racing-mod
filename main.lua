@@ -6,7 +6,6 @@
 --[[
 
 TODO:
-- check for exception list in room search for dead
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
@@ -186,6 +185,10 @@ end
 
 -- Call this every frame in MC_POST_RENDER
 function spriteDisplay()
+  if race == nil or race.status == "none" then
+    return
+  end
+
   -- Local variables
   local game = Game()
   local room = game:GetRoom()
@@ -1570,6 +1573,28 @@ function RacingPlus:NPCUpdate(aNpc)
   end
 end
 
+-- Check for co-op babies
+function RacingPlus:PlayerInit(player)
+  -- Local variables
+  local game = Game()
+  local mainPlayer = game:GetPlayer(0)
+
+  if player.Variant == 1 then
+    mainPlayer:AnimateSad() -- Play a sound effect to communicate that the player made a mistake
+    player:Kill() -- This kills the co-op baby, but the character will still get their health back for some reason
+
+    -- Since the player gets their health back, it is still possible to steal devil deals, so remove all item pedestals in the room
+    local entities = Isaac.GetRoomEntities()
+    for i = 1, #entities do
+      if entities[i].Type == EntityType.ENTITY_PICKUP and -- If this is a pedestal item (5.100)
+         entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE then
+
+        entities[i]:Remove()
+      end
+    end
+  end
+end
+
 -- Check various things once per frame (this will fire while the floor/room is loading)
 function RacingPlus:PostRender()
   -- Local variables
@@ -1800,11 +1825,10 @@ function RacingPlus:PostRender()
   --
 
   -- Decide if we need to check the "save.dat" file for updates from the Racing+ client
-  if race == nil or -- Since we initialized it at the beginning of the program, the "race" table will only be nil if reading the "save.dat" file failed
+  if race == nil or -- The "race" table will only be nil if reading the "save.dat" file failed
      raceLoadNextFrame or -- We explicitly need to check for updates on this frame
-     race.status == "open" or -- We want to check for updates every frame if the race is starting soon so that we can display the countdown quickly
      race.status == "starting" or -- We want to check for updates every frame if the race is starting so that the countdown is smooth
-     ((race.status == "none" or race.status == "in progress") and isaacFrameCount % 30 == 0) then -- Otherwise, only check for updates every half second (file reads are expensive)
+     isaacFrameCount % 30 == 0 then -- Otherwise, only check for updates every half second (file reads are expensive)
 
     -- The server will write data for us to the "save.dat" file in the mod subdirectory
     -- From: https://www.reddit.com/r/themoddingofisaac/comments/5q3ml0/tutorial_saving_different_moddata_for_each_run/
@@ -2149,21 +2173,6 @@ function RacingPlus:PostUpdate()
   end
   
   --
-  -- Check for co-op babies
-  --
-
-  if run.spawnedCoop == false then
-    for i = 0, 3 do -- There are 4 possible players from 0 to 3
-      if Input.IsActionPressed(ButtonAction.ACTION_JOINMULTIPLAYER, i) then -- 19
-        run.spawnedCoop = true
-        player:ResetDamageCooldown() -- Get rid of their invulnerability frames, if any
-        player:TakeDamage(24, 0, EntityRef(player), 0) -- Damage, Flags, Source, DamageCountdown
-        -- This should kill them instantly
-      end
-    end
-  end
-
-  --
   -- Check for input for a School Bag switch
   --
 
@@ -2330,15 +2339,16 @@ function debugFunction()
 end
 
 -- Define callbacks
-RacingPlus:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, RacingPlus.EntityTakeDamage)
-RacingPlus:AddCallback(ModCallbacks.MC_EVALUATE_CACHE,  RacingPlus.EvaluateCache)
-RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,      RacingPlus.NPCUpdate)
-RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,     RacingPlus.PostRender)
-RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,     RacingPlus.PostUpdate)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
---RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Teleport, 59) -- Replacing Teleport (44) (TODO)
---RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.Undefined, 61) -- Replacing Undefined (324) (TODO)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,        debugFunction, 235) -- Debug (custom item)
+RacingPlus:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG,  RacingPlus.EntityTakeDamage)
+RacingPlus:AddCallback(ModCallbacks.MC_EVALUATE_CACHE,   RacingPlus.EvaluateCache)
+RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,       RacingPlus.NPCUpdate)
+RacingPlus:AddCallback(ModCallbacks.MC_POST_PLAYER_INIT, RacingPlus.PlayerInit)
+RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,      RacingPlus.PostRender)
+RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,      RacingPlus.PostUpdate)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
+--RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, 59) -- Replacing Teleport (44) (TODO)
+--RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, 61) -- Replacing Undefined (324) (TODO)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         debugFunction, 235) -- Debug (custom item)
 
 -- Missing item IDs: 43, 59, 61, 235, 263
