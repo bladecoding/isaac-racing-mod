@@ -966,7 +966,7 @@ function RacingPlus:ManuallyClearCurrentRoom()
   -- (the only way to play sounds is to attach them to an NPC, so we have to create one and then destroy it)
   local entity = game:Spawn(EntityType.ENTITY_FLY, 0, Vector(0, 0), Vector(0,0), nil, 0, 0)
   local npc = entity:ToNPC()
-  npc:PlaySound(SoundEffect.SOUND_DOOR_HEAVY_OPEN, 1, 0, false, 1)
+  npc:PlaySound(SoundEffect.SOUND_DOOR_HEAVY_OPEN, 1, 0, false, 1) -- ID, Volume, FrameDelay, Loop, Pitch
   entity:Remove()
 
   -- Emulate various familiars dropping things
@@ -1298,34 +1298,47 @@ end
 --
 
 function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, DamageSource, DamageCountdownFrames)
-  -- 
+  -- Local variables
+  local game = Game()
+  local level = game:GetLevel()
+  local room = game:GetRoom()
+
+  --
   -- Curse of the Crow
   --
 
   local player = TookDamage:ToPlayer()
   if player ~= nil then
     if player:HasCollectible(curseOfTheCrow) then
+      -- Find out if we have red hearts available to take
+      local redHearts = player:GetHearts()
+      if redHearts <= DamageAmount then
+        -- Let the game handle this as normal damage
+        Isaac.DebugString("Normal damage taken.")
+        return
+      end
+
+      -- Reduce our red hearts
+      local redHeartDamage = DamageAmount * -1
+      player:AddHearts(redHeartDamage)
+
+      -- Play the damage animation
+      player:PlayExtraAnimation("Hit")
+
+      -- Play the damage sound
+      local entity = game:Spawn(EntityType.ENTITY_FLY, 0, Vector(0, 0), Vector(0,0), nil, 0, 0)
+      local npc = entity:ToNPC()
+      npc:PlaySound(SoundEffect.SOUND_ISAAC_HURT_GRUNT, 1, 0, false, 1) -- ID, Volume, FrameDelay, Loop, Pitch
+      entity:Remove()
+
       -- Set the correct amount of invulnerability frames
       player:SetMinDamageCooldown(DamageAmount * 60)
 
-      -- Take red hearts before soul hearts
-      local redHearts = player:GetHearts()
-      local soulHearts = player:GetSoulHearts()
-      local damage = DamageAmount * -1
-      Isaac.DebugString("redHearts: " .. tostring(redHearts))
-      Isaac.DebugString("soulHearts: " .. tostring(soulHearts))
+      -- Reduce our devil deal chance (both of these are needed)
+      level:SetRedHeartDamage(true)
+      room:SetRedHeartDamage(true)
 
-      --[[
-      if redHearts > 1 then
-        player:AddHearts(damage)
-      else
-        player:AddSoulHearts(damage)
-      end
-      --]]
-
-      -- Play the damage sound
-      
-
+      -- Don't let the game handle this as normal damage
       return false
     end
   end
