@@ -56,6 +56,7 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
 ## Other Minor Bug Fixes & Quality of Life Changes
 
+* Pressing the reset button on Eden now instantly kills her. (It is not possible to fix the resetting bug in a proper way.)
 * Void Portals will automatically be deleted.
 * If you get the 5% Void teleport after defeating Mom, you will be automatically given the Polaroid and be sent to Womb 1.
 * Some items with no effect at all are removed:

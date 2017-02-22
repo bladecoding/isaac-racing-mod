@@ -27,6 +27,7 @@ TODO CAN'T FIX:
 - Skip the fade in and fade out animation when traveling to the next floor (need console access or the "StartStageTransition()" function's second argument to be working)
 - Stop the player from being teleported upon entering a room with Gurdy, Mom's Heart, or It Lives (Isaac is placed in the location and you can't move him fast enough)
 - Fix Dead Eye on red poop / static TNT barrels (can't modify existing items)
+- Make a 3rd color hue on the map for rooms that are not cleared but you have entered.
 
 --]]
 
@@ -97,6 +98,7 @@ local spriteTable = {}
 local spriteTableSchoolBag = {}
 CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43
 local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
+local curseOfTheCrow = Isaac.GetItemIdByName("Curse of the Crow")
 
 -- Welcome banner
 Isaac.DebugString("+----------------------+")
@@ -1296,6 +1298,42 @@ end
 --
 
 function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, DamageSource, DamageCountdownFrames)
+  -- 
+  -- Curse of the Crow
+  --
+
+  local player = TookDamage:ToPlayer()
+  if player ~= nil then
+    if player:HasCollectible(curseOfTheCrow) then
+      -- Set the correct amount of invulnerability frames
+      player:SetMinDamageCooldown(DamageAmount * 60)
+
+      -- Take red hearts before soul hearts
+      local redHearts = player:GetHearts()
+      local soulHearts = player:GetSoulHearts()
+      local damage = DamageAmount * -1
+      Isaac.DebugString("redHearts: " .. tostring(redHearts))
+      Isaac.DebugString("soulHearts: " .. tostring(soulHearts))
+
+      --[[
+      if redHearts > 1 then
+        player:AddHearts(damage)
+      else
+        player:AddSoulHearts(damage)
+      end
+      --]]
+
+      -- Play the damage sound
+      
+
+      return false
+    end
+  end
+
+  --
+  -- Globins + Knights stuff
+  --
+
   local npc = TookDamage:ToNPC()  
   if npc == nil then
     return
@@ -1462,7 +1500,7 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
   end
 end
 
--- Knight invulnerability frame removal and fast-clear stuff
+-- Crow Curse, Knight invulnerability frame removal and fast-clear stuff
 function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
   local game = Game()
@@ -1472,7 +1510,11 @@ function RacingPlus:NPCUpdate(aNpc)
   local room = game:GetRoom()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
 
-  -- First, look for Knights that are in the "warmup" animation
+  --
+  -- Lock Knights that are in the "warmup" animation
+  -- (still seems to be buggy)
+  --
+
   if (aNpc.Type == EntityType.ENTITY_KNIGHT or -- 41
       aNpc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
       aNpc.Type == EntityType.ENTITY_BONE_KNIGHT) and -- 283
@@ -2171,7 +2213,20 @@ function RacingPlus:PostUpdate()
       end
     end
   end
-  
+
+  --
+  -- Check for input for resetting on Eden
+  --
+
+  if raceVars.character == "Eden" then
+    for i = 0, 3 do -- There are 4 possible players from 0 to 3
+      if Input.IsActionPressed(ButtonAction.ACTION_RESTART, i) then -- 16
+        player:ResetDamageCooldown()
+        player:Kill() -- We can't enable resetting on Eden, so just kill them so that they can start a new run
+      end
+    end
+  end
+
   --
   -- Check for input for a School Bag switch
   --
@@ -2186,7 +2241,7 @@ function RacingPlus:PostUpdate()
        playerSprite:IsPlaying("PickupWalkUp") or
        playerSprite:IsPlaying("PickupWalkRight") then
        
-       run.schoolBagFrame = isaacFrameCount + 69 -- The animation is only 42 frames long, but if we delay anything less than 69, it will hit twice
+       run.schoolBagFrame = isaacFrameCount + 69 -- The animation is only 42 frames long, but if we delay anything less than 69, it will occur twice
        Isaac.DebugString("Delaying to frame " .. tostring(run.schoolBagFrame) .. ".")
        return
     end
@@ -2329,6 +2384,8 @@ function debugFunction()
       Isaac.DebugString("    " .. k .. '.' .. k2 .. ': ' .. tostring(v2))
     end
   end
+
+  player:TakeDamage(1, 0, EntityRef(player), 0) -- Damage, Flags, Source, DamageCountdown
 
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
