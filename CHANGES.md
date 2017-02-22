@@ -1,5 +1,9 @@
 # Racing+ Mod Changes
 
+## Website
+
+If you want to learn more about Racing+, you can visit [the official website](https://isaacracing.net). If you want to know the changes that are present in the in-game mod, read on.
+
 ## Design Goals
 
 In terms of what to change about the game, the mod has several goals, and attempts to strike a balance between them. However, certain things are prioritized. The goals are listed below in order of importance:
