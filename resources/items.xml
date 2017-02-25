@@ -1,6 +1,6 @@
 <items gfxroot="gfx/items/" version="1">
 	<passive cache="firedelay" description="Tears up" gfx="Collectibles_001_TheSadOnion.png" id="1" name="The Sad Onion" />
-	<passive cache="firedelay" description="Triple shot" gfx="Collectibles_002_TheInnerEye.png" id="2" name="The Inner Eye" />
+	<passive cache="damage firedelay" description="Triple shot" gfx="Collectibles_002_TheInnerEye.png" id="2" name="The Inner Eye" />
 	<passive cache="speed tearcolor tearflag" description="Homing shots" gfx="Collectibles_003_SpoonBender.png" id="3" name="Spoon Bender" />
 	<passive cache="damage shotspeed" description="DMG up" gfx="Collectibles_004_CricketsHead.png" id="4" name="Cricket's Head" />
 	<passive cache="tearflag shotspeed range" description="Boomerang tears" gfx="Collectibles_005_MyReflection.png" id="5" name="My Reflection" />
@@ -42,8 +42,8 @@
 	<active cooldown="180" description="Gross..." gfx="Collectibles_041_MomsPad.png" id="41" maxcharges="3" name="Mom's Pad" />
 	<active description="Reusable ranged bomb" gfx="Collectibles_042_BobsRottenHead.png" id="42" maxcharges="3" name="Bob's Rotten Head" />
 	<!-- <active description="" id="43" name="Pills here!" /> -->
-	<active cooldown="30" description="Teleport!" gfx="Collectibles_044_Teleport.png" id="44" maxcharges="2" name="Teleport!" />
-	<!--<active cooldown="30" description="Teleport!" gfx="Collectibles_044_Teleport.png" id="59" maxcharges="2" name="Teleport! (Seeded)" />-->
+	<active cooldown="30" description="Teleport!" gfx="Collectibles_044_Teleport.png" id="44" maxcharges="2" name="Teleport! (Unseeded)" />
+	<active cooldown="30" description="Teleport!" gfx="Collectibles_044_Teleport.png" id="59" maxcharges="2" name="Teleport!" />
 	<active description="Reusable regeneration" gfx="Collectibles_045_YumHeart.png" id="45" maxcharges="4" name="Yum Heart" />
 	<passive cache="luck" description="Luck up" gfx="Collectibles_046_LuckyFoot.png" id="46" name="Lucky Foot" />
 	<active description="Reusable air strike" gfx="Collectibles_047_DoctorsRemote.png" id="47" maxcharges="2" name="Doctor's Remote" />
@@ -153,7 +153,7 @@
 	<passive description="Tooth shot" gfx="Collectibles_150_ToughLove.png" id="150" name="Tough Love" />
 	<passive cache="tearflag" description="They grow inside" gfx="Collectibles_151_TheMulligan.png" id="151" name="The Mulligan" />
 	<passive cache="weapon damage" description="Laser" gfx="Collectibles_152_Technology2.png" id="152" name="Technology 2" />
-	<passive cache="firedelay" description="Quad shot" gfx="Collectibles_153_MutantSpider.png" id="153" name="Mutant Spider" special="true" />
+	<passive cache="damage firedelay" description="Quad shot" gfx="Collectibles_153_MutantSpider.png" id="153" name="Mutant Spider" special="true" />
 	<passive cache="damage" description="DMG up" gfx="Collectibles_154_ChemicalPeel.png" id="154" name="Chemical Peel" />
 	<familiar description="Plop!" gfx="Collectibles_155_ThePeeper.png" id="155" name="The Peeper" />
 	<passive description="Item martyr" gfx="Collectibles_156_Habit.png" id="156" name="Habit" />
@@ -325,8 +325,8 @@
 	<familiar achievement="115" description="The ol' ball and chain" gfx="collectibles_321_samsonschains.png" id="321" name="Samson's Chains" />
 	<familiar description="Mongo friend" gfx="collectibles_322_mongobaby.png" id="322" name="Mongo Baby" />
 	<active achievement="106" description="Collected tears" gfx="collectibles_323_isaacstears.png" id="323" maxcharges="6" name="Isaac's Tears" />
-	<active achievement="125" description="Undefined" gfx="collectibles_324_Undefined.png" id="324" maxcharges="6" name="Undefined" />
-	<!-- <active description="Undefined" gfx="collectibles_324_Undefined.png" id="61" maxcharges="6" name="Undefined (Seeded)" /> -->
+	<active achievement="125" description="Undefined" gfx="collectibles_324_Undefined.png" id="324" maxcharges="6" name="Undefined (Unseeded)" />
+	<active description="Undefined" gfx="collectibles_324_Undefined.png" id="61" maxcharges="6" name="Undefined" />
 	<active achievement="30" cache="familiars" description="Lose your head" gfx="collectibles_325_scissors.png" id="325" maxcharges="2" name="Scissors" />
 	<active cooldown="31" description="Invincibility at a cost" gfx="collectibles_326_breathoflife.png" id="326" maxcharges="6" name="Breath of Life" />
 	<passive achievement="57" cooldown="150" description="Fate chosen" gfx="collectibles_327_thepolaroid.png" id="327" name="The Polaroid" />
@@ -438,10 +438,10 @@
 	<familiar description="Turret Follower" gfx="Collectibles_430_PapaFly.png" id="430" name="Papa Fly" />
 	<familiar description="ydduB Buddy" gfx="Collectibles_431_MultidimensionalBaby.png" id="431" name="Multidimensional Baby" />
 	<passive description="Prize Bombs!" gfx="Collectibles_432_GlitterBombs.png" id="432" name="Glitter Bombs" bombs="5" />
-	<passive achievement="195" description="Me! and my shaaaadow!" gfx="Collectibles_433_MyShadow.png" id="433" name="My Shadow" />
+	<passive achievement="195" description="Me! And my shaaaadow!" gfx="Collectibles_433_MyShadow.png" id="433" name="My Shadow" />
 	<active description="Gotta catch 'em all?" gfx="Collectibles_434_JarOfFlies.png" id="434" name="Jar of Flies" maxcharges="0" />
 	<familiar description="4-way buddy!" gfx="Collectibles_435_LilLoki.png" id="435" name="Lil Loki" />
-	<familiar description="dont cry over it..." gfx="Collectibles_436_Milk.png" id="436" name="Milk!" cache="firedelay" />
+	<familiar description="Don't cry over it..." gfx="Collectibles_436_Milk.png" id="436" name="Milk!" cache="firedelay" />
 	<active description="Reroll Rewards!" gfx="Collectibles_437_D7.png" id="437" name="D7" maxcharges="3" />
 	<passive description="Memories..." gfx="Collectibles_438_Binky.png" id="438" name="Binky" cache="firedelay" soulhearts="2" />
 	<active description="What's inside?" gfx="Collectibles_439_MomsBox.png" id="439" name="Mom's Box" maxcharges="4" cache="all" />
@@ -451,7 +451,7 @@
 	<!-- Afterbirth+ -->
 	<passive achievement="290" description="Loss is power" gfx="Collectibles_442_DarkPrincesCrown.png" id="442" name="Dark Princes Crown" cache="range firedelay shotspeed" devilprice="2" />
 	<passive description="Trick or treat?" gfx="Collectibles_443_Apple.png" id="443" name="Apple!" cache="firedelay" />
-	<passive description="Hes a bleeder!" gfx="Collectibles_444_LeadPencil.png" id="444" name="Lead Pencil" />
+	<passive description="He's a bleeder!" gfx="Collectibles_444_LeadPencil.png" id="444" name="Lead Pencil" />
 	<passive description="Bark at the moon!" gfx="Collectibles_445_DogTooth.png" id="445" name="Dog Tooth" cache="damage speed" />
 	<passive description="Halitosis" gfx="Collectibles_446_DeadTooth.png" id="446" name="Dead Tooth" />
 	<passive description="Crying makes me toot" gfx="Collectibles_447_LingerBean.png" id="447" name="Linger Bean" />
@@ -465,7 +465,7 @@
 	<passive achievement="307" description="I remember this..." gfx="Collectibles_455_DadsLostCoin.png" id="455" name="Dad's Lost Coin" cache="range" />
 	<passive cache="range" description="Midnight snack!" gfx="Collectibles_456_MoldyBread.png" id="456" name="Moldy Bread" hearts="2" maxhearts="2" />
 	<passive description="Hard headed!" gfx="Collectibles_457_Conehead.png" id="457" name="Cone Head" soulhearts="2" />
-	<passive description="Whats in there?" gfx="Collectibles_458_BellyButton.png" id="458" name="Belly Button" />
+	<passive description="What's in there?" gfx="Collectibles_458_BellyButton.png" id="458" name="Belly Button" />
 	<passive description="Booger tears!" gfx="Collectibles_459_SinusInfection.png" id="459" name="Sinus Infection" />
 	<passive description="Blind tears!" gfx="Collectibles_460_Glaucoma.png" id="460" name="Glaucoma" />
 	<passive description="Egg tears!" gfx="Collectibles_461_Parasitoid.png" id="461" name="Parasitoid" cache="range" />
@@ -615,8 +615,8 @@
 	<trinket achievement="204" description="Feels greedy" gfx="trinket_084_ribofgreed.png" id="84" name="Rib of Greed" />
 	<trinket achievement="0" description="Karma up" gfx="trinket_085_karma.png" id="85" name="Karma" />
 	
-	<trinket description="the poop is moving..." gfx="Trinket_086_LilLarva.png" id="86" name="Lil Larva" />
-	<trinket description="you feel her love" gfx="Trinket_087_MomsLocket.png" id="87" name="Mom's Locket" />
+	<trinket description="The poop is moving..." gfx="Trinket_086_LilLarva.png" id="86" name="Lil Larva" />
+	<trinket description="You feel her love" gfx="Trinket_087_MomsLocket.png" id="87" name="Mom's Locket" />
 	<trinket description="Never again!" gfx="Trinket_088_NO.png" id="88" name="NO!" />
 	<trinket description="Keep your friends close..." gfx="Trinket_089_ChildLeash.png" id="89" name="Child Leash" />
 	<trinket description="Fartoom!" gfx="Trinket_090_BrownCap.png" id="90" name="Brown Cap" />
@@ -640,7 +640,7 @@
 	<trinket description="I wonder what it is" gfx="trinket_105_baglunch.png" id="105" name="Bag Lunch" />
 	<trinket description="Uncorked" gfx="trinket_106_lostcork.png" id="106" name="Lost Cork" />
 	<trinket achievement="302" description="Drain me" gfx="trinket_107_crowheart.png" id="107" name="Crow Heart" />
-	<trinket description="Thats a hard nut to crack!" gfx="trinket_108_walnut.png" id="108" name="Walnut" />
+	<trinket description="That's a hard nut to crack!" gfx="trinket_108_walnut.png" id="108" name="Walnut" />
 	<trinket description="Stuck!" gfx="trinket_109_ducttape.png" id="109" name="Duct Tape" />
 	<trinket achievement="284" description="Feels lucky..." gfx="trinket_110_silverdollar.png" id="110" name="Silver Dollar" />
 	<trinket achievement="287" description="Drips with blood..." gfx="trinket_111_bloodycrown.png" id="111" name="Bloody Crown" />

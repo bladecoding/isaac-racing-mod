@@ -71,7 +71,7 @@
 	<pilleffect id="16" name="Tears Up" />
 	<pilleffect id="17" name="Luck Down" />
 	<pilleffect id="18" name="Luck Up" />
-	<pilleffect id="19" name="Telepills" greedmode="false" />
+	<pilleffect achievement="0" id="19" name="Telepills (Unseeded)" greedmode="false" />
 	<pilleffect id="20" name="48 Hour Energy!" />
 	<pilleffect id="21" name="Hematemesis" />
 	<pilleffect id="22" name="Paralysis" />

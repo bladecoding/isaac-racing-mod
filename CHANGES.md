@@ -41,7 +41,7 @@ Additionally, some useless animations are removed:
 * cowering in the fetal position at the beginning of every floor
 * jumping in a hole to the next floor
 * going up the beam of light to the Cathedral
-* entering a chest when going to The Chest or beating the game
+* entering a chest when going to The Chest or beating the game (which also prevents [this bug](http://gfycat.com/ImmaculateHeartfeltBoutu)
 * teleporting upwards
 
 ### 4) Wrath of the Lamb style room clear
@@ -67,11 +67,14 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 * Globins will permanently die upon the 5th regeneration to prevent Epic Fetus softlocks.
 * Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts no longer have invulernability frames after spawning.
 * All item rerolls are now seeded per room, even if you purchase or touch the item. (This doesn't apply to shops.)
+* Teleport! is now seeded.
+* Undefined is now seeded.
 * Book of Sin is now seeded.
 * Lil Chest is now seeded.
+* Telepills is now seeded.
 * Book of Sin will now generate actual random pickups.
 * Mystery Sack will now generate actual random pickups.
-* Greed's Gullet will now properly work on Keeper. (As a side effect of this, the Strength card / the Magic Mushroom Liberty Cap proc will not give a coin container.)
+* Greed's Gullet will now properly work on Keeper. (As a side effect of this, the Strength card will not give a coin container.)
 * Fixed the bug where Tech X + Ipecac does not update the damage cache properly.
 * Fixed the bug where Tech X + Chocolate Milk does not update the tear cache properly.
 * Fixed the spelling of Humbling Bundle.
@@ -95,8 +98,7 @@ Historically, most speedruns and races have been unseeded with the goal of killi
 
 * All characters start with The Compass in addition to their other items.
 * All characters start with the School Bag (from Antibirth). (This is experimental and is subject to change.)
-* Teleport! and Undefined are removed from all item pools. (These items are unseeded.)
-* The Cain's Eye trinket is removed from the game.
+* The Broken Remote trinket and the Cain's Eye trinket are removed from the game.
 
 ### Diversity
 

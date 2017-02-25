@@ -218,13 +218,23 @@ The changed rooms are as follows:
 
 <br />
 
-### Begotten Fix
+### Begotten Fix 1
 
 If a player enters from the bottom door of the 2x1 Depths / Necropolis room with the single Begotten, they will automatically take damage. It seems clear that Edmund intended for the Begotten to be attached to the block, so the room has been adjusted accordingly.
 
 The changed rooms are as follows:
 * Depths: #316
 * Necropolis: #316
+
+<br />
+
+### Begotten Fix 2
+
+One room has Begottens that are not close enough to a well, so they immediately despawn upon entering the room, making the room completely pointless.
+
+The deleted rooms are as follows:
+* Depths: #422
+* Necropolis: #422
 
 <br />
 
@@ -259,15 +269,6 @@ The changed room is as follows:
 * Boss: #2042
 * Womb: #507
 * Chest: #54
-
-<br />
-
-### Monstro II & Sucker Fix
-
-When entering from the top or bottom door of the Monstro II boss room with the four Suckers, the player is not given enough time to reasonably dodge the Sucker tear. The Suckers are slightly moved to alleviate this.
-
-The changed room is as follows:
-* #1067
 
 <br />
 
@@ -318,15 +319,6 @@ In the Gurdy room filled with pits, the player is forced to take the boss item i
 
 The changed room is as follows:
 * #1066 (Gurdy)
-
-<br />
-
-### Technology Softlock Fix
-
-One room requires the player to angle their shots. This can make a Technology build with no bombs softlock. This bug is fixed by replacing two rocks with poops.
-
-The changed rooms are as follows:
-* Catacombs: #328
 
 <br />
 
@@ -452,16 +444,6 @@ The changed rooms are as follows:
 
 <br />
 
-### Small Crazy Long Legs Fix
-
-One room has 4 Small Crazy Long Legs and 2 Mushrooms. There is not enough space in the room to reasonably dodge all of the enemies in a consistent manner.
-
-The changed room is as follows:
-* Caves: #914
-* Catacombs: #914
-
-<br />
-
 ### Pale Fatty Fix
 
 In some rooms, Edmund placed a rediculous amount of Pale Fatties. The number has been reduced to 8, which is possible to consistently kill without getting hit on a basic build.
@@ -510,6 +492,18 @@ The changed room is as follows:
 
 <br />
 
+### I AM ERROR Door Fixes
+
+On several I AM ERROR rooms, objects overlap with the doors, which can cause unavoidable damage in certain situations.
+
+The changed rooms are as follows:
+* #1, #5, #9, #11, #17, #21, #23, #24, #27 (removed doors)
+* #14 (deleted poops)
+* #15 (added doors)
+* #26 (moved pickups)
+
+<br />
+
 
 
 
@@ -549,9 +543,9 @@ The removed rooms are as follows:
 ### Out of Bounds Fix
 
 Rooms with entities out of bounds have been placed in bounds. This does not affect gameplay in any way.
-* Caves: #203, #363, #406, #427, #429
-* Catacombs: #363, #406, #427, #429
-* Depths: #430, #455, #463
+* Caves: #203, #363, #406, #427, #428, #429
+* Catacombs: #363, #406, #427, #428, #429
+* Depths: #430, #455, #457, #460, #463, #471, #472
 * Necropolis: #430, #455
 
 <br />

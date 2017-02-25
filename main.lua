@@ -6,6 +6,14 @@
 --[[
 
 TODO:
+- Unnerf Krampus
+- Make Wizards faster
+- Make Cursed Eye seeded
+- Fix strength cards
+- Fix fast-clear for puzzle rooms
+- Add new graphic for 1 mil %
+
+- Get Hyphen to fix item tracker
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
@@ -16,7 +24,7 @@ TODO CAN'T FIX:
 - Automatically enable BLCK CNDL seed (not possible with current bindings)
 - Automatically enter in a seed for seeded races (not possible with current bindings)
 - Make timer on the screen use real time
-- Make Teleport / Undefined / Cursed Eye / Telepills seeded (the ChangeRoom() function is broken and doesn't actually consistently send you to the room that you specify)
+- Fix Strength card on Keeper (no existing card callbacks and can't detect "use card" animation)
 - Fix shop "item on sale" bug (setting price to anything other than 15 just causes it to go back to 15 on the next frame)
 - Fix shop pedestal items "rerolling into consumables" bug
 - Do item bans in a proper way via editing item pools (not possible to modify item pools via current bindings)
@@ -24,9 +32,9 @@ TODO CAN'T FIX:
   - When spawning a specific item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 12, 0)"), it does not remove it from any pools.
   - When spawning a random item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 0, 0)"), it removes it from item pools.
   - When giving the player an item with Lua (like "player:AddCollectible(race.startingItems[i], 12, true)"), it does not remove it from any pools.
-- Skip the fade in and fade out animation when traveling to the next floor (need console access or the "StartStageTransition()" function's second argument to be working)
+- Skip the fade in and fade out animation when traveling to the next floor (need console access or the "StartStageTransition()" function's second argument to be working, because you call that after "Level:SetStage()")
 - Stop the player from being teleported upon entering a room with Gurdy, Mom's Heart, or It Lives (Isaac is placed in the location and you can't move him fast enough)
-- Fix Dead Eye on red poop / static TNT barrels (can't modify existing items)
+- Fix Dead Eye on poop / red poop / static TNT barrels (can't modify existing items)
 - Make a 3rd color hue on the map for rooms that are not cleared but you have entered.
 
 --]]
@@ -40,7 +48,7 @@ local run = {
   roomsCleared          = 0,
   roomsEntered          = 0,
   roomEntering          = false,
-  currentFloor          = 1,
+  currentFloor          = 0,
   currentRoomClearState = true,
   currentGlobins        = {},
   currentKnights        = {},
@@ -50,6 +58,7 @@ local run = {
   keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
   keeperHealthItems     = {},
   spawnedCoop           = false,
+  usedTelepills         = false,
   schoolBagItem         = 0,
   schoolBagMaxCharges   = 0,
   schoolBagCharges      = 0,
@@ -85,6 +94,7 @@ local RNGCounter = {
   BookOfSin,
   Teleport,
   Undefined,
+  Telepills,
   SackOfPennies,
   BombBag,
   JuicySack,
@@ -96,9 +106,41 @@ local RNGCounter = {
 }
 local spriteTable = {}
 local spriteTableSchoolBag = {}
+
+-- Collectibles
 CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43
+CollectibleType.COLLECTIBLE_TELEPORT_SEEDED = 59
+CollectibleType.COLLECTIBLE_UNDEFINED_SEEDED = 61
+CollectibleType.COLLECTIBLE_DEBUG = 235
 local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
 local curseOfTheCrow = Isaac.GetItemIdByName("Curse of the Crow")
+local telepills = Isaac.GetPillEffectByName("Telepills")
+
+-- Extra enums
+RoomTransition = { -- Spaded by ilise rose (@yatboim)
+  TRANSITION_NONE = 0,
+  TRANSITION_DEFAULT = 1,
+  TRANSITION_STAGE = 2,
+  TRANSITION_TELEPORT = 3,
+  TRANSITION_4 = 4,
+  TRANSITION_ANKH = 5,
+  TRANSITION_DEAD_CAT = 6,
+  TRANSITION_1UP = 7,
+  TRANSITION_GUPPYS_COLLAR = 8,
+  TRANSITION_JUDAS_SHADOW = 9,
+  TRANSITION_LAZARUS_RAGS = 10,
+  TRANSITION_GLOWING_HOURGLASS = 12,
+  TRANSITION_D7 = 13,
+  TRANSITION_MISSING_POSTER = 14
+}
+LevelGridIndex = { -- Spaded by me
+  GRIDINDEX_I_AM_ERROR = -2,
+  GRIDINDEX_CRAWLSPACE = -4,
+  GRIDINDEX_BOSS_RUSH = -5,
+  GRIDINDEX_BLACK_MARKET = -6,
+  GRIDINDEX_MEGA_SATAN = -7,
+  GRIDINDEX_BLUE_WOMB_PORTAL = -8,
+}
 
 -- Welcome banner
 Isaac.DebugString("+----------------------+")
@@ -353,7 +395,7 @@ function RacingPlus:RunInit()
   run.roomsCleared = 0
   run.roomsEntered = 0
   run.roomEntering = false
-  run.currentFloor = 1
+  run.currentFloor = 0
   run.currentRoomClearState = true
   run.currentGlobins = {}
   run.currentKnights = {}
@@ -363,6 +405,7 @@ function RacingPlus:RunInit()
   run.keeperBaseHearts = 4
   run.keeperHealthItems = {}
   run.spawnedCoop = false
+  run.usedTelepills = false
   run.schoolBagItem = 0
   run.schoolBagMaxCharges = 0
   run.schoolBagCharges = 0
@@ -552,7 +595,6 @@ function RacingPlus:RunInitForRace()
   if raceVars.runInitForRaceDone then
     return
   else
-    Isaac.DebugString("Doing run initialization for the race.")
     raceVars.runInitForRaceDone = true
   end
 
@@ -571,6 +613,8 @@ function RacingPlus:RunInitForRace()
   if race.status == "none" then
     return
   end
+
+  Isaac.DebugString("Doing run initialization for the race.")
 
   -- Validate BLCK CNDL for races
   if raceVars.blckCndlOn == false then
@@ -636,6 +680,7 @@ function RacingPlus:RunInitForRace()
   if race.rFormat == "seeded" then
     addItemBanList(CollectibleType.COLLECTIBLE_TELEPORT) -- 44
     addItemBanList(CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
+    addTrinketBanList(TrinketType.TRINKET_BROKEN_REMOTE) -- 4
     addTrinketBanList(TrinketType.TRINKET_CAINS_EYE) -- 59
   end
 
@@ -776,7 +821,7 @@ function RacingPlus:SchoolBagInit()
          run.schoolBagItem == CollectibleType.COLLECTIBLE_BEAN or -- 111
          run.schoolBagItem == CollectibleType.COLLECTIBLE_FORGET_ME_NOW or -- 127
          run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_HEAD or -- 145
-         run.schoolBagItem == 235 or -- Debug
+         run.schoolBagItem == CollectibleType.COLLECTIBLE_DEBUG or -- 235
          run.schoolBagItem == CollectibleType.COLLECTIBLE_D10 or -- 285
          run.schoolBagItem == CollectibleType.COLLECTIBLE_UNICORN_STUMP or -- 298
          run.schoolBagItem == CollectibleType.COLLECTIBLE_WOODEN_NICKEL or -- 349
@@ -1087,6 +1132,7 @@ function RacingPlus:ManuallyClearCurrentRoom()
         break
       end
     end
+
 
     -- Spawn either 1 or 2 blue spiders (50% chance of each)
     RNGCounter.JuicySack = incrementRNG(RNGCounter.JuicySack)
@@ -1607,7 +1653,7 @@ function RacingPlus:NPCUpdate(aNpc)
          npc.Type == EntityType.ENTITY_MEGA_CLOTTY or -- 282
          npc.Type == EntityType.ENTITY_MOMS_DEAD_HAND or -- 287
          npc.Type == EntityType.ENTITY_MEATBALL or -- 290
-         npc.Type == 303 or -- There is no enum for Blister (303.0)
+         npc.Type == EntityType.ENTITY_BLISTER or -- 303
          npc.Type == EntityType.ENTITY_BROWNIE or -- 402
          (npc:IsBoss() == false and npc:IsChampion()) or -- This is a champion
          (npc:IsDead() == false and npc.CanShutDoors == true) then -- This is an alive enemy
@@ -1657,6 +1703,7 @@ function RacingPlus:PostRender()
   local gameFrameCount = game:GetFrameCount()
   local level = game:GetLevel()
   local stage = level:GetStage()
+  local stageType = level:GetStageType()
   local room = game:GetRoom()
   local roomFrameCount = room:GetFrameCount()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
@@ -1678,13 +1725,13 @@ function RacingPlus:PostRender()
   -- Keep track of when we change floors
   -- (this has to be in the PostRender callback because we don't want to wait for the floor transition animation to complete before teleporting away from the Void floor)
   if stage ~= run.currentFloor then
-    -- Find out if we are using a Sacrifice Room
-    if stage == 11 and run.currentFloor ~= 10 then
-      -- We arrivated at The Chest / Dark Room without going through Cathedral / Sheol
+    -- Find out if we performed a Sacrifice Room teleport
+    if stage == 11 and stageType == 0 and run.currentFloor ~= 10 then -- 11.0 is Dark Room
+      -- We arrivated at the Dark Room without going through Sheol
       level:SetStage(run.currentFloor, 0) -- Return to one after the the floor we were on before
       -- (the first argument is "LevelStage", which is 0 indexed for some reason, the second argument is StageType)
       game:StartStageTransition(false, 1) -- The first argument is "SameStage", the second is meaningless
-      Isaac.DebugString("Sacrifice Room teleport / cheating detected.")
+      Isaac.DebugString("Sacrifice Room teleport detected.")
       return
     end
 
@@ -1695,6 +1742,10 @@ function RacingPlus:PostRender()
     local floorSeed = level:GetDungeonPlacementSeed()
     RNGCounter.Teleport = floorSeed
     RNGCounter.Undefined = floorSeed
+    RNGCounter.Telepills = floorSeed
+    for i = 1, 100 do -- Increment the RNG 100 times so that players cannot use knowledge of Teleport! teleports to determine where the Telepills destination will be
+      RNGCounter.Telepills = incrementRNG(RNGCounter.Telepills)
+    end
 
     -- Detect Void teleports
     if stage ==  12 then
@@ -1733,12 +1784,21 @@ function RacingPlus:PostRender()
      run.roomsEntered = run.roomsEntered + 1
      run.currentRoomClearState = clear -- This is needed so that we don't get credit for clearing a room when bombing from a room with enemies into an empty room
 
-     -- Also reset the current room's Globins (used for softlock prevention) and Knights (used to delete invulnerability frames)
-     run.currentGlobins = {}
-     run.currentKnights = {}
+    -- Reset the current room's Globins (used for softlock prevention) and Knights (used to delete invulnerability frames)
+    run.currentGlobins = {}
+    run.currentKnights = {}
 
   elseif roomFrameCount > 0 then
     run.roomEntering = false
+  end
+
+  --
+  -- Stop the pill animation after using Telepills
+  --
+
+  if run.usedTelepills then
+    run.usedTelepills = false
+    player:StopExtraAnimation()
   end
 
   --
@@ -2339,17 +2399,74 @@ function RacingPlus:Teleport()
   -- Local variables
   local game = Game()
   local level = game:GetLevel()
-  local index = level:GetCurrentRoomIndex()
-  local index2 = level:GetStartingRoomIndex()
+  local rooms = level:GetRooms()
 
-  --[[
-  level:ChangeRoom(index2)
-  level:ChangeRoom(index2)
-  level:ChangeRoom(index2)
-  --]]
-  game:StartRoomTransition(index2, Direction.NO_DIRECTION, 3)
-  Isaac.DebugString("Current room index: " .. tostring(index))
-  Isaac.DebugString("Teleporting to room: " .. tostring(index2))
+  -- Get a random index
+  RNGCounter.Teleport = incrementRNG(RNGCounter.Teleport)
+  math.randomseed(RNGCounter.Teleport)
+  local roomIndex = math.random(0, rooms.Size - 1)
+  local gridIndex = rooms:Get(roomIndex).GridIndex
+
+  -- Teleport
+  level.LeaveDoor = -1 -- You have to set this before every teleport or else it will send you to the wrong room
+  game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
+  Isaac.DebugString("Teleport! to room: " .. tostring(gridIndex))
+
+  -- We don't want to display the "use" animation, we just want to instantly teleport
+end
+
+function RacingPlus:Undefined()
+  -- Local variables
+  local game = Game()
+  local level = game:GetLevel()
+  local stage = level:GetStage()
+  local rooms = level:GetRooms()
+
+  -- It is not possible to teleport to I AM ERROR rooms and Black Markets on The Chest / Dark Room
+  local insertErrorRoom = false
+  local insertBlackMarket = false
+  if stage ~= 11 then
+    insertErrorRoom = true
+    
+    -- There is a 1% chance have a Black Market inserted into the list of possibilities (according to blcd)
+    RNGCounter.Undefined = incrementRNG(RNGCounter.Undefined)
+    math.randomseed(RNGCounter.Undefined)
+    local blackMarketRoll = math.random(1, 100) -- Item room, secret room, super secret room, I AM ERROR room
+    if blackMarketRoll <= 1 then
+      insertBlackMarket = true
+    end
+  end
+
+  -- Find the indexes for all of the room possibilities
+  local roomIndexes = {}
+  for i = 0, rooms.Size - 1 do -- This is 0 indexed
+    local roomType = rooms:Get(i).Data.Type
+    local gridIndex = rooms:Get(i).GridIndex
+    if roomType == RoomType.ROOM_TREASURE or -- 4
+       roomType == RoomType.ROOM_SECRET or -- 7
+       roomType == RoomType.ROOM_SUPERSECRET then -- 8
+
+      roomIndexes[#roomIndexes + 1] = gridIndex
+    end
+  end
+  if insertErrorRoom then
+    roomIndexes[#roomIndexes + 1] = LevelGridIndex.GRIDINDEX_I_AM_ERROR -- -2
+  end
+  if insertBlackMarket then
+    roomIndexes[#roomIndexes + 1] = LevelGridIndex.GRIDINDEX_BLACK_MARKET -- -6
+  end
+
+  -- Get a random index
+  RNGCounter.Undefined = incrementRNG(RNGCounter.Undefined)
+  math.randomseed(RNGCounter.Undefined)
+  local gridIndex = roomIndexes[math.random(1, #roomIndexes)]
+ 
+  -- Teleport
+  level.LeaveDoor = -1 -- You have to set this before every teleport or else it will send you to the wrong room
+  game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
+  Isaac.DebugString("Undefined to room: " .. tostring(gridIndex))
+
+  -- We don't want to display the "use" animation, we just want to instantly teleport
 end
 
 function RacingPlus:MegaBlast()
@@ -2357,6 +2474,56 @@ function RacingPlus:MegaBlast()
   local player = game:GetPlayer(0)
   player:AnimateSad()
   return true
+end
+
+function RacingPlus:Telepills()
+  -- Local variables
+  local game = Game()
+  local level = game:GetLevel()
+  local stage = level:GetStage()
+  local rooms = level:GetRooms()
+
+  -- It is not possible to teleport to I AM ERROR rooms and Black Markets on The Chest / Dark Room
+  local insertErrorRoom = false
+  local insertBlackMarket = false
+  if stage ~= 11 then
+    insertErrorRoom = true
+    
+    -- There is a 2% chance have a Black Market inserted into the list of possibilities (according to blcd)
+    RNGCounter.Telepills = incrementRNG(RNGCounter.Telepills)
+    math.randomseed(RNGCounter.Telepills)
+    local blackMarketRoll = math.random(1, 100) -- Item room, secret room, super secret room, I AM ERROR room
+    if blackMarketRoll <= 2 then
+      insertBlackMarket = true
+    end
+  end
+
+  -- Find the indexes for all of the room possibilities
+  local roomIndexes = {}
+  for i = 0, rooms.Size - 1 do -- This is 0 indexed
+    local gridIndex = rooms:Get(i).GridIndex
+    roomIndexes[#roomIndexes + 1] = gridIndex
+  end
+  if insertErrorRoom then
+    roomIndexes[#roomIndexes + 1] = LevelGridIndex.GRIDINDEX_I_AM_ERROR -- -2
+  end
+  if insertBlackMarket then
+    roomIndexes[#roomIndexes + 1] = LevelGridIndex.GRIDINDEX_BLACK_MARKET -- -6
+  end
+
+  -- Get a random index
+  RNGCounter.Telepills = incrementRNG(RNGCounter.Telepills)
+  math.randomseed(RNGCounter.Telepills)
+  local gridIndex = roomIndexes[math.random(1, #roomIndexes)]
+
+  -- Teleport
+  level.LeaveDoor = -1 -- You have to set this before every teleport or else it will send you to the wrong room
+  game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
+  Isaac.DebugString("Telepills to room: " .. tostring(gridIndex))
+
+  -- We don't want to display the "use" animation, we just want to instantly teleport
+  -- Pills are hard coded to queue the "use" animation, so stop it on the next frame
+  run.usedTelepills = true
 end
 
 function debugFunction()
@@ -2398,7 +2565,8 @@ function debugFunction()
     end
   end
 
-  player:TakeDamage(1, 0, EntityRef(player), 0) -- Damage, Flags, Source, DamageCountdown
+  local roomDesc = level:GetCurrentRoomDesc()
+  Isaac.DebugString("SALE: " .. tostring(roomDesc.ShopItemDiscountIdx))
 
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
@@ -2406,6 +2574,10 @@ function debugFunction()
 
   -- Display the "use" animation
   return true
+end
+
+function RacingPlus.StrengthCard()
+  Isaac.DebugString("USED STRENGTH")
 end
 
 -- Define callbacks
@@ -2416,9 +2588,11 @@ RacingPlus:AddCallback(ModCallbacks.MC_POST_PLAYER_INIT, RacingPlus.PlayerInit)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,      RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,      RacingPlus.PostUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
---RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, 59) -- Replacing Teleport (44) (TODO)
---RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, 61) -- Replacing Undefined (324) (TODO)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT_SEEDED) -- Replacing Teleport (44) with 59
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, CollectibleType.COLLECTIBLE_UNDEFINED_SEEDED) -- Replacing Undefined (324) with 61
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         debugFunction, 235) -- Debug (custom item)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         debugFunction, CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 235)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.StrengthCard, Card.CARD_STRENGTH)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_PILL,         RacingPlus.Telepills, telepills)
 
 -- Missing item IDs: 43, 59, 61, 235, 263
