@@ -527,7 +527,7 @@ The removed room is as follows:
 
 ### Empty Room Removal
 
-A small number of rooms in the game are completely empty of any objects at all.
+A small number of rooms in the game do not have anything in them. Some other rooms do not have anything in them except for a few rocks.
 
 The removed rooms are as follows:
 * Basement: #39, #315
@@ -537,6 +537,12 @@ The removed rooms are as follows:
 * Sheol: #73, #89, #255
 * Cathedral: #57, #73, #89
 * Chest: #42
+
+One room on the Basement/Cellar has the chance to be empty because of stacked entities.
+
+The changed rooms are as follows:
+* Basement: #875
+* Cellar: #875
 
 <br />
 

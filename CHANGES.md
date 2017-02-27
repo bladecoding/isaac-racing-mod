@@ -56,30 +56,27 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
 ## Other Minor Bug Fixes & Quality of Life Changes
 
-* Pressing the reset button on Eden now instantly kills her. (It is not possible to fix the resetting bug in a proper way.)
 * Void Portals will automatically be deleted.
-* If you get the 5% Void teleport after defeating Mom, you will be automatically given the Polaroid and be sent to Womb 1.
 * Some items with no effect at all are removed:
   * the Karma trinket (all Donation Machines are removed on the BLCK CNDL seed)
   * the Amnesia pill (all curses are removed on the BLCK CNDL seed)
   * the ??? pill (all curses are removed on the BLCK CNDL seed)
+* The "drop" button will now immediately drop cards and trinkets. (This won't happen if you have the School Bag, Starter Deck, Little Baggy, Deep Pockets, or Polydactyly.)
 * Troll Bombs and Mega Troll Bombs now always have a fuse timer of exactly 2 seconds.
 * Globins will permanently die upon the 5th regeneration to prevent Epic Fetus softlocks.
 * Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts no longer have invulernability frames after spawning.
 * All item rerolls are now seeded per room, even if you purchase or touch the item. (This doesn't apply to shops.)
 * Teleport! is now seeded.
 * Undefined is now seeded.
-* Book of Sin is now seeded.
 * Lil Chest is now seeded.
 * Telepills is now seeded.
-* Book of Sin will now generate actual random pickups.
+* Telepills no longer has a use animation.
+* The Book of Sin will now generate actual random pickups.
 * Mystery Sack will now generate actual random pickups.
-* Greed's Gullet will now properly work on Keeper. (As a side effect of this, the Strength card will not give a coin container.)
-* Fixed the bug where Tech X + Ipecac does not update the damage cache properly.
-* Fixed the bug where Tech X + Chocolate Milk does not update the tear cache properly.
+* Greed's Gullet will now properly work on Keeper.
 * Fixed the spelling of Humbling Bundle.
 * Spawning a co-op baby will automatically kill the baby, return the heart to you, and delete all item pedestals in the room. (This is to prevent various co-op baby-related exploits.)
-* Teleporting to the Dark Room via a Sacrifice Room will instead send you to the next floor. (This is to prevent exploiting races to The Lamb or Mega Satan.)
+* Teleporting to the Dark Room via a Sacrifice Room will send you to the next floor instead. (This is to prevent exploiting races to The Lamb or Mega Satan.)
 * The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
 * The trapdoor or the beam of light on Womb 2 will be automatically removed depending on your run goal. By default, it will remove the trapdoor.
 

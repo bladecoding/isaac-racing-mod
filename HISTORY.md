@@ -2,6 +2,15 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
+* *0.2.50* - Unreleased
+  * Holding R on Eden no longer kills her.
+  * The "drop" button will now immediately drop cards and trinkets. (This won't happen if you have the School Bag, Starter Deck, Little Baggy, Deep Pockets, or Polydactyly.)
+  * Fixed the Strength card on Keeper. Note that it will only permanently give you a coin container if you are at 0 or less base coin containers.
+  * Fixed the crash that occured with School Bag when you swapped at the same time as picking up a new item.
+  * You will no longer recieve the Polaroid and get teleported to Womb 1 if you arrive at the Void floor.
+  * Removed the "use" animation from Telepills.
+  * Fixed a Basement/Cellar room that had a chance to spawn empty because of stacked entities.
+  * Added two new graphics for save files (fully unlocked and not fully unlocked).
 * *0.2.49* - February 24th
   * Keeper now starts with the D6, Greed's Gullet, Duality, and 50 cents.
   * Fixed the bug with Keeper and Greed's Gullet where he would not be able to pick up health ups.
@@ -11,7 +20,6 @@ Note that the Racing+ Mod version will almost always match the client version. T
   * Broken Remote is now banned during seeded races. (I forgot to do this initially.)
   * When you spawn a co-op baby, it will now automatically kill the baby and delete all item pedestals in the room.
   * When you use a Sacrifice Room to teleport directly to the Dark Room, it will instead send you to the next floor.
-  * Pressing the reset button on Eden now instantly kills her. (It is not possible to fix the resetting bug in a proper way.)
   * Fixed an unavoidable damage I AM ERROR room where you would teleport on top of a Spiked Chest.
   * Cleaned up the door placements on some miscellaneous I AM ERROR rooms to ensure that the player always teleports to an intended location.
   * Fixed the I AM ERROR room without any entrances.
@@ -24,6 +32,7 @@ Note that the Racing+ Mod version will almost always match the client version. T
   * Fixed the bug where the damage cache was not properly updated after having Polyphemus and then picking up The Inner Eye or Mutant Spider.
   * Fixed an asymmetric Scarred Guts on a Womb/Utero L room (#757).
   * Fixed a Little Horn room (#1095) where there was only a narrow entrance to the top and bottom doors.
+  * Pressing the reset button on Eden now instantly kills her. (It is not possible to fix the resetting bug in a proper way.)
 * *0.2.29* - February 12th
   * Changed the double Forsaken room to have two Dark Uriels.
   * All Globins will permanently die upon the 5th regeneration to prevent Epic Fetus softlocks.

@@ -42,8 +42,7 @@
 	<active cooldown="180" description="Gross..." gfx="Collectibles_041_MomsPad.png" id="41" maxcharges="3" name="Mom's Pad" />
 	<active description="Reusable ranged bomb" gfx="Collectibles_042_BobsRottenHead.png" id="42" maxcharges="3" name="Bob's Rotten Head" />
 	<!-- <active description="" id="43" name="Pills here!" /> -->
-	<active cooldown="30" description="Teleport!" gfx="Collectibles_044_Teleport.png" id="44" maxcharges="2" name="Teleport! (Unseeded)" />
-	<active cooldown="30" description="Teleport!" gfx="Collectibles_044_Teleport.png" id="59" maxcharges="2" name="Teleport!" />
+	<active cooldown="30" description="Teleport!" gfx="Collectibles_044_Teleport.png" id="44" maxcharges="2" name="Teleport!" />
 	<active description="Reusable regeneration" gfx="Collectibles_045_YumHeart.png" id="45" maxcharges="4" name="Yum Heart" />
 	<passive cache="luck" description="Luck up" gfx="Collectibles_046_LuckyFoot.png" id="46" name="Lucky Foot" />
 	<active description="Reusable air strike" gfx="Collectibles_047_DoctorsRemote.png" id="47" maxcharges="2" name="Doctor's Remote" />
@@ -325,8 +324,7 @@
 	<familiar achievement="115" description="The ol' ball and chain" gfx="collectibles_321_samsonschains.png" id="321" name="Samson's Chains" />
 	<familiar description="Mongo friend" gfx="collectibles_322_mongobaby.png" id="322" name="Mongo Baby" />
 	<active achievement="106" description="Collected tears" gfx="collectibles_323_isaacstears.png" id="323" maxcharges="6" name="Isaac's Tears" />
-	<active achievement="125" description="Undefined" gfx="collectibles_324_Undefined.png" id="324" maxcharges="6" name="Undefined (Unseeded)" />
-	<active description="Undefined" gfx="collectibles_324_Undefined.png" id="61" maxcharges="6" name="Undefined" />
+	<active achievement="125" description="Undefined" gfx="collectibles_324_Undefined.png" id="324" maxcharges="6" name="Undefined" />
 	<active achievement="30" cache="familiars" description="Lose your head" gfx="collectibles_325_scissors.png" id="325" maxcharges="2" name="Scissors" />
 	<active cooldown="31" description="Invincibility at a cost" gfx="collectibles_326_breathoflife.png" id="326" maxcharges="6" name="Breath of Life" />
 	<passive achievement="57" cooldown="150" description="Fate chosen" gfx="collectibles_327_thepolaroid.png" id="327" name="The Polaroid" />
@@ -523,8 +521,8 @@
 	
 	<active achievement="338" description="Unleash the power!" gfx="Collectibles_510_Delirious.png" id="510" name="Delirious" maxcharges="12" />
 
-	<active description="Debug" gfx="collectibles_324_Undefined.png" id="235" maxcharges="1" name="Debug" />
-	<passive description="B1 Treasure Room items are off limits in seeded races." gfx="error.png" id="263" name="Off Limits" />
+	<passive description="B1 Treasure Room items are off limits in seeded races." gfx="error.png" id="235" name="Off Limits" />
+	<active description="Debug" gfx="NODUDE-small.png" id="263" maxcharges="1" name="Debug" />
 
 	<trinket achievement="101" description="Gulp!" gfx="trinket_001_swallowedpenny.png" id="1" name="Swallowed Penny" />
 	<trinket description="It feels lucky?" gfx="trinket_002_petrifiedpoop.png" id="2" name="Petrified Poop" />

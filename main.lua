@@ -6,24 +6,26 @@
 --[[
 
 TODO:
-- Unnerf Krampus
+- Fix fast-clear for puzzle rooms
+- Look into Duality changing narrow boss rooms
+- reinvestigate shop sale thing with ShopItemIdx
 - Make Wizards faster
 - Make Cursed Eye seeded
-- Fix strength cards
-- Fix fast-clear for puzzle rooms
-- Add new graphic for 1 mil %
 
-- Get Hyphen to fix item tracker
+- Get Hyphen to fix item tracker for new items
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
 - forget me now after killing boss, go back to B1
 - Fix unseeded Boss heart drops from Pin, etc. (and make it so that they drop during door opening)
+- Unnerf Krampus
+- Fix Isaac babies spawning on top of you
+- Fix Isaac beams never hitting you
+- Fix Conquest beams
 - Make Devil / Angel Rooms given in order and independent of floor
 
 TODO CAN'T FIX:
 - Automatically enable BLCK CNDL seed (not possible with current bindings)
 - Automatically enter in a seed for seeded races (not possible with current bindings)
-- Make timer on the screen use real time
 - Fix Strength card on Keeper (no existing card callbacks and can't detect "use card" animation)
 - Fix shop "item on sale" bug (setting price to anything other than 15 just causes it to go back to 15 on the next frame)
 - Fix shop pedestal items "rerolling into consumables" bug
@@ -57,6 +59,7 @@ local run = {
   placedKeys            = false,
   keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
   keeperHealthItems     = {},
+  keeperUsedStrength    = false,
   spawnedCoop           = false,
   usedTelepills         = false,
   schoolBagItem         = 0,
@@ -109,12 +112,10 @@ local spriteTableSchoolBag = {}
 
 -- Collectibles
 CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43
-CollectibleType.COLLECTIBLE_TELEPORT_SEEDED = 59
-CollectibleType.COLLECTIBLE_UNDEFINED_SEEDED = 61
-CollectibleType.COLLECTIBLE_DEBUG = 235
+CollectibleType.COLLECTIBLE_OFF_LIMITS = 235
+CollectibleType.COLLECTIBLE_DEBUG = 263
 local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
 local curseOfTheCrow = Isaac.GetItemIdByName("Curse of the Crow")
-local telepills = Isaac.GetPillEffectByName("Telepills")
 
 -- Extra enums
 RoomTransition = { -- Spaded by ilise rose (@yatboim)
@@ -311,8 +312,7 @@ function timerUpdate()
     return
   end
 
-  local elapsedFrames = Isaac:GetFrameCount() - raceVars.startedTime
-  local elapsedTime = elapsedFrames * 0.017
+  local elapsedTime = (Isaac:GetTime() - raceVars.startedTime) / 1000 -- This will be in milliseconds, so we divide by 1000
 
   local minutes = math.floor(elapsedTime / 60)
   if minutes < 10 then
@@ -404,6 +404,7 @@ function RacingPlus:RunInit()
   run.placedKeys = false
   run.keeperBaseHearts = 4
   run.keeperHealthItems = {}
+  run.keeperUsedStrength = false
   run.spawnedCoop = false
   run.usedTelepills = false
   run.schoolBagItem = 0
@@ -1709,6 +1710,7 @@ function RacingPlus:PostRender()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
+  local maxHearts = player:GetMaxHearts()
   local isaacFrameCount = Isaac:GetFrameCount()
 
   -- Check to see if we are starting a run
@@ -1723,7 +1725,7 @@ function RacingPlus:PostRender()
   end
 
   -- Keep track of when we change floors
-  -- (this has to be in the PostRender callback because we don't want to wait for the floor transition animation to complete before teleporting away from the Void floor)
+  -- (this has to be in the PostRender callback because we don't want to wait for the floor transition animation to complete before teleporting away from the Dark Room)
   if stage ~= run.currentFloor then
     -- Find out if we performed a Sacrifice Room teleport
     if stage == 11 and stageType == 0 and run.currentFloor ~= 10 then -- 11.0 is Dark Room
@@ -1745,19 +1747,6 @@ function RacingPlus:PostRender()
     RNGCounter.Telepills = floorSeed
     for i = 1, 100 do -- Increment the RNG 100 times so that players cannot use knowledge of Teleport! teleports to determine where the Telepills destination will be
       RNGCounter.Telepills = incrementRNG(RNGCounter.Telepills)
-    end
-
-    -- Detect Void teleports
-    if stage ==  12 then
-      -- Give the player The Polaroid if they don't have it already
-      if player:HasCollectible(CollectibleType.COLLECTIBLE_POLAROID) == false then
-        player:AddCollectible(CollectibleType.COLLECTIBLE_POLAROID, 0, false) -- 327
-      end
-
-      -- Teleport them back to Womb 1
-      level:SetStage(6, 0) -- Womb 1, a stage type of 0 appears to give a random stage type
-      game:StartStageTransition(false, 1) -- The first argument is "SameStage", the second is meaningless
-      return
     end
 
     -- Spawn Mega Satan key pieces
@@ -1788,6 +1777,13 @@ function RacingPlus:PostRender()
     run.currentGlobins = {}
     run.currentKnights = {}
 
+    -- Check to see if we need to remove the heart container from a Strength card on Keeper
+    if run.keeperUsedStrength and run.keeperBaseHearts == 4 then
+      run.keeperBaseHearts = 2
+      run.keeperUsedStrength = false
+      player:AddMaxHearts(-2, true) -- Take away a heart container
+      Isaac.DebugString("Took away 1 heart container from Keeper (via a Strength card).")
+    end
   elseif roomFrameCount > 0 then
     run.roomEntering = false
   end
@@ -1834,7 +1830,7 @@ function RacingPlus:PostRender()
         if race ~= nil and race.rFormat == "seeded" and
            stage == 1 and
            room:GetType() == RoomType.ROOM_TREASURE and
-           entities[i].SubType ~= 263 then
+           entities[i].SubType ~= CollectibleType.COLLECTIBLE_OFF_LIMITS then
           offLimits = true
         end
 
@@ -1849,8 +1845,8 @@ function RacingPlus:PostRender()
 
         local newPedestal
         if offLimits then
-          -- Change the item to Off Limits (263)
-          newPedestal = game:Spawn(5, 100, entities[i].Position, entities[i].Velocity, entities[i].Parent, 263, RNGCounter.InitialSeed)
+          -- Change the item to Off Limits (235)
+          newPedestal = game:Spawn(5, 100, entities[i].Position, entities[i].Velocity, entities[i].Parent, CollectibleType.COLLECTIBLE_OFF_LIMITS, RNGCounter.InitialSeed)
           game:Fart(newPedestal.Position, 0, newPedestal, 0.5, 0) -- Play a fart animation so that it doesn't look like some bug with the Racing+ mod
           --Isaac.DebugString("Made a new random pedestal (Off Limits).")
         elseif bannedItem then
@@ -2106,10 +2102,9 @@ function RacingPlus:PostRender()
     elseif race.countdown == 1 then
       spriteInit("top", "1")
     elseif race.countdown == 0 and raceVars.started == false then -- The countdown has reached 0
-      -- Set the start time to the number of frames that have elapsed since the game is open
-      -- (this won't account for lag, but we are unable to call things like "os.clock()" without forcing the using to enable the "--luadebug" flag on the game)
+      -- Set the start time to the number of milliseconds since Lua was initialized (the same thing as "os.clock()")
       -- (we have to do this here so that the clock doesn't get reset if the player dies or resets)
-      raceVars.startedTime = isaacFrameCount
+      raceVars.startedTime = Isaac.GetTime()
 
       -- Draw the "Go!" graphic
       spriteInit("top", "go") 
@@ -2288,14 +2283,37 @@ function RacingPlus:PostUpdate()
   end
 
   --
-  -- Check for input for resetting on Eden
+  -- Check for input for a fast item drop
   --
 
-  if raceVars.character == "Eden" then
+  if race ~= nil and
+     race.schoolBag == false and
+     player:HasCollectible(CollectibleType.COLLECTIBLE_STARTER_DECK) == false and -- 251
+     player:HasCollectible(CollectibleType.COLLECTIBLE_LITTLE_BAGGY) == false and -- 252
+     player:HasCollectible(CollectibleType.COLLECTIBLE_DEEP_POCKETS) == false and -- 416
+     player:HasCollectible(CollectibleType.COLLECTIBLE_POLYDACTYLY) == false then -- 454
+     -- Adding a null card/pill won't work if there are 2 slots, so we have to disable the feature if the player has these items
+
     for i = 0, 3 do -- There are 4 possible players from 0 to 3
-      if Input.IsActionPressed(ButtonAction.ACTION_RESTART, i) then -- 16
-        player:ResetDamageCooldown()
-        player:Kill() -- We can't enable resetting on Eden, so just kill them so that they can start a new run
+      if Input.IsActionPressed(ButtonAction.ACTION_DROP, i) then -- 11
+        -- Cards and pills
+        local card1 = player:GetCard(0)
+        local card2 = player:GetCard(1)
+        local pill1 = player:GetPill(0)
+        local pill2 = player:GetPill(1)
+        if card1 ~= 0 and card2 == 0 and pill2 == 0 then
+          -- Drop the card
+          player:AddCard(0)
+          Isaac.DebugString("Dropped card " .. tostring(card1) .. ".")
+        elseif pill1 ~= 0 and card2 == 0 and pill2 == 0 then
+          -- Drop the pill
+          player:AddPill(0)
+          Isaac.DebugString("Dropped pill " .. tostring(card1) .. ".")
+        end
+
+        -- Trinkets
+        -- (if the player has 2 trinkets, this will drop both of them)
+        player:DropTrinket(player.Position, false) -- The second argument is ReplaceTick
       end
     end
   end
@@ -2306,18 +2324,8 @@ function RacingPlus:PostUpdate()
 
   if race ~= nil and
      race.schoolBag == true and
+     player:IsHoldingItem() == false and
      isaacFrameCount >= run.schoolBagFrame then
-
-    if playerSprite:IsPlaying("Pickup") or
-       playerSprite:IsPlaying("PickupWalkDown") or
-       playerSprite:IsPlaying("PickupWalkLeft") or
-       playerSprite:IsPlaying("PickupWalkUp") or
-       playerSprite:IsPlaying("PickupWalkRight") then
-       
-       run.schoolBagFrame = isaacFrameCount + 69 -- The animation is only 42 frames long, but if we delay anything less than 69, it will occur twice
-       Isaac.DebugString("Delaying to frame " .. tostring(run.schoolBagFrame) .. ".")
-       return
-    end
 
     for i = 0, 3 do -- There are 4 possible players from 0 to 3
       if Input.IsActionPressed(ButtonAction.ACTION_DROP, i) then -- 11
@@ -2412,7 +2420,7 @@ function RacingPlus:Teleport()
   game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
   Isaac.DebugString("Teleport! to room: " .. tostring(gridIndex))
 
-  -- We don't want to display the "use" animation, we just want to instantly teleport
+  -- This will override the existing Teleport effect because we have already locked in a room transition
 end
 
 function RacingPlus:Undefined()
@@ -2466,7 +2474,7 @@ function RacingPlus:Undefined()
   game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
   Isaac.DebugString("Undefined to room: " .. tostring(gridIndex))
 
-  -- We don't want to display the "use" animation, we just want to instantly teleport
+  -- This will override the existing Undefined effect because we have already locked in a room transition
 end
 
 function RacingPlus:MegaBlast()
@@ -2474,6 +2482,23 @@ function RacingPlus:MegaBlast()
   local player = game:GetPlayer(0)
   player:AnimateSad()
   return true
+end
+
+function RacingPlus.StrengthCard()
+  -- Local variables
+  local game = Game()
+  local player = game:GetPlayer(0)
+  local maxHearts = player:GetMaxHearts()
+
+  -- Only give Keeper another heart container if he has less than 2 base containers
+  if raceVars.character == "Keeper" and run.keeperBaseHearts < 4 then
+    -- Add another heart container (temporarily)
+    player:AddMaxHearts(2, true) -- Give 1 heart container
+    player:AddCoins(1) -- This fills in the new heart container
+    run.keeperBaseHearts = run.keeperBaseHearts + 2
+    run.keeperUsedStrength = true
+    Isaac.DebugString("Gave 1 heart container to Keeper (via a Strength card).")
+  end
 end
 
 function RacingPlus:Telepills()
@@ -2565,19 +2590,12 @@ function debugFunction()
     end
   end
 
-  local roomDesc = level:GetCurrentRoomDesc()
-  Isaac.DebugString("SALE: " .. tostring(roomDesc.ShopItemDiscountIdx))
-
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
 
   -- Display the "use" animation
   return true
-end
-
-function RacingPlus.StrengthCard()
-  Isaac.DebugString("USED STRENGTH")
 end
 
 -- Define callbacks
@@ -2588,11 +2606,11 @@ RacingPlus:AddCallback(ModCallbacks.MC_POST_PLAYER_INIT, RacingPlus.PlayerInit)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,      RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,      RacingPlus.PostUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT_SEEDED) -- Replacing Teleport (44) with 59
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, CollectibleType.COLLECTIBLE_UNDEFINED_SEEDED) -- Replacing Undefined (324) with 61
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT) -- 44
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         debugFunction, CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 235)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         debugFunction, CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 263)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.StrengthCard, Card.CARD_STRENGTH)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_PILL,         RacingPlus.Telepills, telepills)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_PILL,         RacingPlus.Telepills, PillEffect.PILLEFFECT_TELEPILLS)
 
 -- Missing item IDs: 43, 59, 61, 235, 263
