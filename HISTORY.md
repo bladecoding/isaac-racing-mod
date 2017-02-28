@@ -2,7 +2,11 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
-* *0.2.50* - Unreleased
+* *0.2.54* - Unreleased
+  * Fast-clear now works with puzzle rooms.
+  * Fixed a Larry Jr. room that should not have an entrance from the top.
+  * Added better save file graphics, thanks to Gromfalloon.
+* *0.2.53* - February 27th
   * Holding R on Eden no longer kills her.
   * The "drop" button will now immediately drop cards and trinkets. (This won't happen if you have the School Bag, Starter Deck, Little Baggy, Deep Pockets, or Polydactyly.)
   * Fixed the Strength card on Keeper. Note that it will only permanently give you a coin container if you are at 0 or less base coin containers.
@@ -24,7 +28,7 @@ Note that the Racing+ Mod version will almost always match the client version. T
   * Cleaned up the door placements on some miscellaneous I AM ERROR rooms to ensure that the player always teleports to an intended location.
   * Fixed the I AM ERROR room without any entrances.
   * Fast-clear has been recoded to fix the bug where the doors would open if you killed two splitting enemies at the same time.
-  * The title screen has been updated to a beautiful new one created by Gromfaloon.
+  * The title screen has been updated to a beautiful new one created by Gromfalloon.
   * Fixed some more out of bounds entities.
   * Fixed an asymmetric Scarred Guts on a Womb/Utero L room (#757).
   * Fixed a Little Horn room (#1095) where there was only a narrow entrance to the top and bottom doors.

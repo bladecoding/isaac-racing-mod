@@ -492,21 +492,28 @@ The changed room is as follows:
 
 <br />
 
-### I AM ERROR Door Fixes
+### I AM ERROR Door/Entrance Fixes
 
 On several I AM ERROR rooms, objects overlap with the doors, which can cause unavoidable damage in certain situations.
 
 The changed rooms are as follows:
-* #1, #5, #9, #11, #17, #21, #23, #24, #27 (removed doors)
+* 
 * #14 (deleted poops)
-* #15 (added doors)
+* #15 (added doors) 
 * #26 (moved pickups)
 
 <br />
 
+### Door Fixes
 
+On certain rooms, doors were poorly placed so that they overlap with entities or objects.
 
+The changed rooms are as follows:
 
+* I AM ERROR: #1, #5, #9, #11, #17, #21, #23, #24, #27 (removed doors)
+* Boss: #1125 (Larry Jr.)
+
+<br />
 
 ## Room Changes - Miscellaneous
 

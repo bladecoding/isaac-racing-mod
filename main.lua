@@ -6,7 +6,7 @@
 --[[
 
 TODO:
-- Fix fast-clear for puzzle rooms
+- fix void + D6 bug
 - Look into Duality changing narrow boss rooms
 - reinvestigate shop sale thing with ShopItemIdx
 - Make Wizards faster
@@ -952,7 +952,7 @@ function RacingPlus:ManuallyClearCurrentRoom()
             room:RemoveGridEntity(i, 0, false) -- gridEntity:Destroy() does not work
           elseif stage == 8 then
             -- Delete the W2 normal trap door
-            if race.goal == "Blue Baby" then
+            if race ~= nil and race.goal == "Blue Baby" then
               room:RemoveGridEntity(i, 0, false) -- gridEntity:Destroy() does not work
             end
           end
@@ -967,6 +967,7 @@ function RacingPlus:ManuallyClearCurrentRoom()
       if entities[i].Type == EntityType.ENTITY_PICKUP and
          entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
          entities[i].SubType == CollectibleType.COLLECTIBLE_POLAROID and
+		 race ~= nil and
          race.goal == "The Lamb" then
 
         entities[i]:Remove()
@@ -977,6 +978,7 @@ function RacingPlus:ManuallyClearCurrentRoom()
       if entities[i].Type == EntityType.ENTITY_PICKUP and
          entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
          entities[i].SubType == CollectibleType.COLLECTIBLE_NEGATIVE and
+		 race ~= nil and
          race.goal == "Blue Baby" then
 
         entities[i]:Remove()
@@ -986,6 +988,7 @@ function RacingPlus:ManuallyClearCurrentRoom()
       -- Check for Heaven door (1000.39)
       if entities[i].Type == EntityType.ENTITY_EFFECT and
          entities[i].Variant == EffectVariant.HEAVEN_LIGHT_DOOR and
+		 race ~= nil and
          race.goal == "The Lamb" then
 
         entities[i]:Remove()
@@ -1590,7 +1593,7 @@ function RacingPlus:NPCUpdate(aNpc)
     aNpc.Velocity = Vector(0, 0)
   end
 
-  -- 
+  --
   -- Fast-clear - We want to look for enemies that are dying so that we can open the doors prematurely
   --
 
@@ -1609,11 +1612,28 @@ function RacingPlus:NPCUpdate(aNpc)
     return
   end
 
-  -- We don't want to open the doors in a a puzzle room
+  -- If we are in a puzzle room, check to see if all of the plates have been pressed
   if room:HasTriggerPressurePlates() then
-    return
+    -- Check all the grid entities in the room
+    local num = room:GetGridSize()
+    for i = 1, num do
+      local gridEntity = room:GetGridEntity(i)
+      if gridEntity ~= nil then
+        -- If this entity is a trap door
+        local test = gridEntity:ToPressurePlate()
+        if test ~= nil then
+          if gridEntity:GetSaveState().State ~= 3 then
+            return
+          end
+        end
+      end
+    end
   end
 
+  RacingPlus:CheckAlive()
+end
+
+function RacingPlus:CheckAlive()
   -- Check all the (non-grid) entities in the room to see if anything is alive
   local allDead = true
   local entities = Isaac.GetRoomEntities()
@@ -2189,6 +2209,34 @@ function RacingPlus:PostUpdate()
       local heartsDiff = baseHearts - run.keeperBaseHearts
       run.keeperBaseHearts = run.keeperBaseHearts + heartsDiff
       Isaac.DebugString("Set new Keeper baseHearts to: " .. tostring(run.keeperBaseHearts) .. " (from detection, change was " .. tostring(heartsDiff) .. ")")
+    end
+  end
+
+  --
+  -- Fast-clear for puzzle rooms
+  -- (when puzzle rooms are cleared, there is an annoying delay before the doors are opened)
+  --
+
+  -- If we are in a puzzle room, check to see if all of the plates have been pressed
+  if room:IsClear() == false and room:HasTriggerPressurePlates() then
+    -- Check all the grid entities in the room
+    local allPushed = true
+    local num = room:GetGridSize()
+    for i = 1, num do
+      local gridEntity = room:GetGridEntity(i)
+      if gridEntity ~= nil then
+        -- If this entity is a trap door
+        local test = gridEntity:ToPressurePlate()
+        if test ~= nil then
+          if gridEntity:GetSaveState().State ~= 3 then
+            allPushed = false
+            return
+          end
+        end
+      end
+    end
+    if allPushed then
+      RacingPlus:CheckAlive()
     end
   end
 
