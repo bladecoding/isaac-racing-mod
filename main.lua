@@ -6,6 +6,7 @@
 --[[
 
 TODO:
+- fix Lil Haunt iframes
 - fix void + D6 bug
 - Look into Duality changing narrow boss rooms
 - reinvestigate shop sale thing with ShopItemIdx

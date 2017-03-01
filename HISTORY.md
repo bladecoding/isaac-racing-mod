@@ -2,7 +2,7 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
-* *0.2.54* - Unreleased
+* *0.2.54* - February 28th
   * Fast-clear now works with puzzle rooms.
   * Fixed a Larry Jr. room that should not have an entrance from the top.
   * Added better save file graphics, thanks to Gromfalloon.
