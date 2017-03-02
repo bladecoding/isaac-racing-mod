@@ -2,7 +2,7 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
-* *0.2.56* - Unreleased
+* *0.2.57* - March 2nd
   * Made crawlspaces use normal room transition animations instead of the long fade.
   * Removed the Blank Card animation after you use it with teleportation cards.
   * Centered the Mega Maw in the single Mega Maw room on the Chest (#269).
