@@ -2,6 +2,18 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
+* *0.2.55* - Unreleased
+  * Greatly sped up the attack patterns of Wizoobs and Red Ghosts.
+  * Removed invulernability frames from Lil' Haunts.
+  * Cursed Eye is now seeded.
+  * Broken Remote is now seeded.
+  * Broken Remote is no longer removed from seeded races.
+  * Fixed the bug with School Bag where items would have more charges than they were supposed to at the beginning of a race.
+  * Fixed the bug where The Book of Sin did not show up in the School Bag.
+  * Fixed the bug where the Mega Blast placeholder did not show up in the School Bag.
+  * Fixed the bug where The Book of Sin would not count towards the Book Worm transformation.
+  * Fixed the bug where The Polaroid / The Negative would not be removed sometimes.
+  * Fixed the bug where if you consumed a D6 with a Void and then tried to consume another pedestal, it would sometimes duplicate that pedestal.
 * *0.2.54* - February 28th
   * Fast-clear now works with puzzle rooms.
   * Fixed a Larry Jr. room that should not have an entrance from the top.

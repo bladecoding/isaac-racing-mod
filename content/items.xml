@@ -1,4 +1,0 @@
-<items gfxroot="gfx/items/" version="1">
-	<active description="A placeholder for the beginning of the race" gfx="collectibles_441_megasatansbreath.png" name="Mega Blast (Placeholder)" maxcharges="12" />
-	<passive description="Drain me" gfx="collectibles_curseofthecrow.png" name="Curse of the Crow" />
-</items>

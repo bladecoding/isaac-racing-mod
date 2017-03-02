@@ -6,22 +6,23 @@
 --[[
 
 TODO:
-- fix Lil Haunt iframes
-- fix void + D6 bug
+- Get rid of Blank card animation when teleporting
+- Make Scollex deterministic
+- Make Void Portals seeded
 - Look into Duality changing narrow boss rooms
-- reinvestigate shop sale thing with ShopItemIdx
-- Make Wizards faster
-- Make Cursed Eye seeded
+- put ready below top graphic
 
 - Get Hyphen to fix item tracker for new items
 - Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
 - Integrate 1st place, 2nd place, etc. on screen
-- forget me now after killing boss, go back to B1
+- forget me now after killing end boss, go back to B1
 - Fix unseeded Boss heart drops from Pin, etc. (and make it so that they drop during door opening)
 - Unnerf Krampus
+- Unnerf Sisters Vis
 - Fix Isaac babies spawning on top of you
 - Fix Isaac beams never hitting you
 - Fix Conquest beams
+- Speed up the spawning of the first ghost on The Haunt fight
 - Make Devil / Angel Rooms given in order and independent of floor
 
 TODO CAN'T FIX:
@@ -37,7 +38,7 @@ TODO CAN'T FIX:
   - When giving the player an item with Lua (like "player:AddCollectible(race.startingItems[i], 12, true)"), it does not remove it from any pools.
 - Skip the fade in and fade out animation when traveling to the next floor (need console access or the "StartStageTransition()" function's second argument to be working, because you call that after "Level:SetStage()")
 - Stop the player from being teleported upon entering a room with Gurdy, Mom's Heart, or It Lives (Isaac is placed in the location and you can't move him fast enough)
-- Fix Dead Eye on poop / red poop / static TNT barrels (can't modify existing items)
+- Fix Dead Eye on poop / red poop / static TNT barrels (can't modify existing items, no "player:GetDeadEyeCharge()" function)
 - Make a 3rd color hue on the map for rooms that are not cleared but you have entered.
 
 --]]
@@ -55,20 +56,21 @@ local run = {
   currentRoomClearState = true,
   currentGlobins        = {},
   currentKnights        = {},
+  currentLilHaunts      = {},
   replacedItems         = {},
   replacedTrinkets      = {},
-  placedKeys            = false,
   keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
   keeperHealthItems     = {},
   keeperUsedStrength    = false,
-  spawnedCoop           = false,
+  itemReplacementDelay  = 0,
+  teleporting           = false,
   usedTelepills         = false,
+  touchedBookOfSin      = false,
   schoolBagItem         = 0,
   schoolBagMaxCharges   = 0,
   schoolBagCharges      = 0,
   schoolBagFrame        = 0, -- The frame at which the "cooldown" wears off and we can switch items again
 }
-local raceLoadNextFrame = false
 local race = { -- The table that gets updated from the "save.dat" file
   status          = "none",      -- Can be "none", "open", "starting", "in progress"
   rType           = "unranked",  -- Can be "unranked", "ranked" (this is not currently used)
@@ -81,22 +83,25 @@ local race = { -- The table that gets updated from the "save.dat" file
   currentSeed     = "-",         -- The seed of our current run (detected through the "log.txt" file)
   countdown       = -1,          -- This corresponds to the graphic to draw on the screen
 }
+local oldRace = {} -- This is used to show what was updated in the race table
 local raceVars = { -- Things that pertain to the race but are not read from the "save.dat" file
-  runInitForRaceDone = false,
   blckCndlOn         = false,
   difficulty         = 0,
   character          = "Isaac",
   itemBanList        = {},
   trinketBanList     = {},
+  loadNextFrame      = true,
   hourglassUsed      = false,
   started            = false,
   startedTime        = 0,
   updateCache        = 0, -- 0 is not update, 1 is set to update after the next run begins, 2 is after the next run has begun
+  deleteRaceSpecific = false,
+  placedKeys         = false,
 }
 local RNGCounter = {
   InitialSeed,
   BookOfSin,
-  Teleport,
+  Teleport, -- Broken Remote also uses this
   Undefined,
   Telepills,
   SackOfPennies,
@@ -113,10 +118,9 @@ local spriteTableSchoolBag = {}
 
 -- Collectibles
 CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43
+CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER = 59
 CollectibleType.COLLECTIBLE_OFF_LIMITS = 235
 CollectibleType.COLLECTIBLE_DEBUG = 263
-local megaBlastPlaceholder = Isaac.GetItemIdByName("Mega Blast (Placeholder)")
-local curseOfTheCrow = Isaac.GetItemIdByName("Curse of the Crow")
 
 -- Extra enums
 RoomTransition = { -- Spaded by ilise rose (@yatboim)
@@ -231,7 +235,7 @@ end
 
 -- Call this every frame in MC_POST_RENDER
 function spriteDisplay()
-  if race == nil or race.status == "none" then
+  if race.status == "none" then
     return
   end
 
@@ -262,7 +266,10 @@ function spriteDisplay()
 end
 
 function spriteDisplaySchoolBag()
-  if race == nil or race.schoolBag == false or run.schoolBagItem == 0 then
+  if race.schoolBag == false or
+     run.schoolBagItem == 0 or
+     spriteTableSchoolBag.item == nil then
+
     return
   end
 
@@ -400,23 +407,25 @@ function RacingPlus:RunInit()
   run.currentRoomClearState = true
   run.currentGlobins = {}
   run.currentKnights = {}
+  run.currentLilHaunts = {}
   run.replacedItems = {}
   run.replacedTrinkets = {}
-  run.placedKeys = false
   run.keeperBaseHearts = 4
   run.keeperHealthItems = {}
   run.keeperUsedStrength = false
-  run.spawnedCoop = false
+  run.itemReplacementDelay = 0
+  run.teleporting = false
   run.usedTelepills = false
+  run.touchedBookOfSin = false
   run.schoolBagItem = 0
   run.schoolBagMaxCharges = 0
   run.schoolBagCharges = 0
   run.schoolBagFrame = isaacFrameCount
 
   -- Reset some race variables that we keep track of per run
-  raceVars.runInitForRaceDone = false
   raceVars.itemBanList = {}
   raceVars.trinketBanList = {}
+  raceVars.placedKeys = false
 
   -- Reset some RNG counters to the floor RNG of B1 for this seed
   -- (future drops will be based on the RNG from this initial random value)
@@ -483,12 +492,11 @@ function RacingPlus:RunInit()
   -- Give us custom racing items, depending on the character (mostly just the D6)
   RacingPlus:CharacterInit()
 
+  -- Do more run initialization things specifically pertaining to races
+  RacingPlus:RunInitForRace()
+
   -- Log the run beginning
   Isaac.DebugString("A new run has begun.")
-
-  -- We will do more run initialization things specifically pertaining to races later on in the PostRender callback, so return for now
-  -- (we want to make sure that we check the "save.dat" file for updates on this frame)
-  raceLoadNextFrame = true
 end
 
 -- This is done when a run is started and after the Glowing Hour Glass is used
@@ -586,20 +594,12 @@ function RacingPlus:CharacterInit()
 
   -- Make sure that the School Bag item is maximally charged
   if run.schoolBagItem ~= 0 then
-    run.schoolBagCharges = 12 -- 12 is the maximum amount of charges that an item can have
+    run.schoolBagCharges = RacingPlus:GetActiveCollectibleCharges(run.schoolBagItem)
   end
 end
 
 -- This occurs when first going into the game, after using the Glowing Hour Glass during race countdown, and after a reset occurs mid-race
 function RacingPlus:RunInitForRace()
-  -- Once per run, we need to check the race status
-  -- (this needs to be in a separate function in case reading "save.dat" fails on the first frame of the run)
-  if raceVars.runInitForRaceDone then
-    return
-  else
-    raceVars.runInitForRaceDone = true
-  end
-
   -- Local variables
   local game = Game()
   local player = game:GetPlayer(0)
@@ -613,10 +613,9 @@ function RacingPlus:RunInitForRace()
 
   -- If we are not in a race, don't do anything special
   if race.status == "none" then
+    Isaac.DebugString("Not in a race.")
     return
   end
-
-  Isaac.DebugString("Doing run initialization for the race.")
 
   -- Validate BLCK CNDL for races
   if raceVars.blckCndlOn == false then
@@ -657,7 +656,7 @@ function RacingPlus:RunInitForRace()
     if race.startingItems[i] == 441 and raceVars.hourglassUsed == false then
       -- Mega Blast bugs out if Glowing Hour Glass is used while the blast is occuring
       -- So, give them a placeholder Mega Blast if this is before the race has started
-      player:AddCollectible(megaBlastPlaceholder, 12, false)
+      player:AddCollectible(CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER, 12, false)
     else
       -- Give the item; the second argument is charge amount, and the third argument is "AddConsumables"
       player:AddCollectible(race.startingItems[i], 12, true)
@@ -678,16 +677,11 @@ function RacingPlus:RunInitForRace()
     end
   end
 
-  -- Add item bans for seeded mode
   if race.rFormat == "seeded" then
-    addItemBanList(CollectibleType.COLLECTIBLE_TELEPORT) -- 44
-    addItemBanList(CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
-    addTrinketBanList(TrinketType.TRINKET_BROKEN_REMOTE) -- 4
+    -- Add item bans for seeded mode
     addTrinketBanList(TrinketType.TRINKET_CAINS_EYE) -- 59
-  end
-
-  -- Add bans for diversity races
-  if race.rFormat == "diversity" then
+  elseif race.rFormat == "diversity" then
+    -- Add bans for diversity races
     addItemBanList(CollectibleType.COLLECTIBLE_MOMS_KNIFE) -- 114
     addItemBanList(CollectibleType.COLLECTIBLE_EPIC_FETUS) -- 168
     addItemBanList(CollectibleType.COLLECTIBLE_TECH_X) -- 395
@@ -721,139 +715,11 @@ end
 
 function RacingPlus:SchoolBagInit()
   if race == nil or race.schoolBag == false or run.schoolBagItem == 0 then
-    return
+    return -- We have to check for this since this can be called from the PostUpdate callback
   end
 
-  -- Find out how many charges this item has
-  local charges
-  if run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH or -- 441
-     run.schoolBagItem == CollectibleType.COLLECTIBLE_EDENS_SOUL or -- 490
-     run.schoolBagItem == CollectibleType.COLLECTIBLE_DELIRIOUS then -- 510
-  
-    run.schoolBagMaxCharges = 12
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BIBLE or -- 33
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_NECRONOMICON or -- 35
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MY_LITTLE_UNICORN or -- 77
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_REVELATIONS or -- 78
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_NAIL or -- 83
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_WE_NEED_GO_DEEPER or -- 84
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DECK_OF_CARDS or -- 85
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GAMEKID or -- 93
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOTTLE_PILLS or -- 102
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D6 or -- 105
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PINKING_SHEARS or -- 107
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PRAYER_CARD or -- 146
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRYSTAL_BALL or -- 158
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D20 or -- 166
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_WHITE_PONY or -- 181
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D100 or -- 283
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D4 or -- 284
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SECRETS or -- 287
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_FLUSH or -- 291
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SATANIC_BIBLE or -- 292
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_HEAD_OF_KRAMPUS or -- 293
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_ISAACS_TEARS or -- 323
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNDEFINED or -- 324
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BREATH_OF_LIFE or -- 326
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_VOID or -- 477
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SMELTER or -- 479
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CLICKER then -- 482
-
-    run.schoolBagMaxCharges = 6
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_YUM_HEART or -- 45
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SIN or -- 97
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED or -- 43
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PONY or -- 130
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CRACK_THE_SKY or -- 160
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLANK_CARD or -- 286
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLACEBO or -- 348
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS or -- 357
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D8 or -- 406
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT_2 or -- 419
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BOX or -- 439
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D1 or -- 476
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DATAMINER or -- 481
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CROOKED_PENNY then -- 485
-
-    run.schoolBagMaxCharges = 4
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL or -- 34
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_BRA or -- 39
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MOMS_PAD or -- 41
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOBS_ROTTEN_HEAD or -- 42
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOOK_OF_SHADOWS or -- 58
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_ANARCHIST_COOKBOOK or -- 65
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTROS_TOOTH or -- 86
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MONSTER_MANUAL or -- 123
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEST_FRIEND or -- 136
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_NOTCHED_AXE or -- 147
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MEGA_BEAN or -- 351
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_FRIEND_BALL or -- 382
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D12 or -- 386
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D7 then -- 437
-
-    run.schoolBagMaxCharges = 3
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_MR_BOOM or -- 37
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPORT or -- 44
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DOCTORS_REMOTE or -- 47
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SHOOP_DA_WHOOP or -- 49
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_LEMON_MISHAP or -- 56
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOURGLASS or -- 66
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DEAD_SEA_SCROLLS or -- 124
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SPIDER_BUTT or -- 171
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DADS_KEY or -- 175
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TELEPATHY_BOOK or -- 192
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BOX_OF_SPIDERS or -- 288
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_SCISSORS or -- 325
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_KIDNEY_BEAN or -- 421
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GLOWING_HOUR_GLASS or -- 422
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PAUSE or -- 478
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_COMPOST or -- 480
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DULL_RAZOR or -- 486
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_METRONOME or -- 488
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DINF then -- 489
-
-    run.schoolBagMaxCharges = 2
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_POOP or -- 36
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TAMMYS_HEAD or -- 38
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BEAN or -- 111
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_FORGET_ME_NOW or -- 127
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_HEAD or -- 145
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DEBUG or -- 235
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_D10 or -- 285
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_UNICORN_STUMP or -- 298
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_WOODEN_NICKEL or -- 349
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_TEAR_DETONATOR or -- 383
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MINE_CRAFTER or -- 427
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PLAN_C then -- 475
-
-    run.schoolBagMaxCharges = 1
-
-  elseif run.schoolBagItem == CollectibleType.COLLECTIBLE_KAMIKAZE or -- 40
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_RAZOR_BLADE or -- 126
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_GUPPYS_PAW or -- 133
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_IV_BAG or -- 135
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_REMOTE_DETONATOR or -- 137
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_PORTABLE_SLOT or -- 177
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLOOD_RIGHTS or -- 186
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_HOW_TO_JUMP or -- 282
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_THE_JAR or -- 290
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_MAGIC_FINGERS or -- 295
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_CONVERTER or -- 296
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_BLUE_BOX or -- 297
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_DIPLOPIA or -- 347
-         run.schoolBagItem == CollectibleType.COLLECTIBLE_JAR_OF_FLIES then -- 434
-
-    run.schoolBagMaxCharges = 0
-  else
-    -- Somehow, a non-active item got put inside the School Bag
-    Isaac.DebugString("Error: A non-active item got put inside the School Bag.")
-    run.schoolBagMaxCharges = 0
-  end
+  -- We need to find out how many charges this item has in order to draw the charge bar correctly
+  run.schoolBagMaxCharges = RacingPlus:GetActiveCollectibleCharges(run.schoolBagItem)
 
   -- Load the sprites
   spriteTableSchoolBag.item = Sprite()
@@ -868,6 +734,140 @@ function RacingPlus:SchoolBagInit()
   spriteTableSchoolBag.barLines = Sprite()
   spriteTableSchoolBag.barLines:Load("gfx/ui/ui_chargebar.anm2", true)
   spriteTableSchoolBag.barLines:Play("BarOverlay" .. tostring(run.schoolBagMaxCharges), true)
+end
+
+-- Find out how many charges this item has
+function RacingPlus:GetActiveCollectibleCharges(itemID)
+  local charges = 0
+  if itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH or -- 441
+     itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER or -- 59
+     itemID == CollectibleType.COLLECTIBLE_EDENS_SOUL or -- 490
+     itemID == CollectibleType.COLLECTIBLE_DELIRIOUS then -- 510
+  
+    charges = 12
+
+  elseif itemID == CollectibleType.COLLECTIBLE_BIBLE or -- 33
+         itemID == CollectibleType.COLLECTIBLE_NECRONOMICON or -- 35
+         itemID == CollectibleType.COLLECTIBLE_MY_LITTLE_UNICORN or -- 77
+         itemID == CollectibleType.COLLECTIBLE_BOOK_REVELATIONS or -- 78
+         itemID == CollectibleType.COLLECTIBLE_THE_NAIL or -- 83
+         itemID == CollectibleType.COLLECTIBLE_WE_NEED_GO_DEEPER or -- 84
+         itemID == CollectibleType.COLLECTIBLE_DECK_OF_CARDS or -- 85
+         itemID == CollectibleType.COLLECTIBLE_GAMEKID or -- 93
+         itemID == CollectibleType.COLLECTIBLE_MOMS_BOTTLE_PILLS or -- 102
+         itemID == CollectibleType.COLLECTIBLE_D6 or -- 105
+         itemID == CollectibleType.COLLECTIBLE_PINKING_SHEARS or -- 107
+         itemID == CollectibleType.COLLECTIBLE_PRAYER_CARD or -- 146
+         itemID == CollectibleType.COLLECTIBLE_CRYSTAL_BALL or -- 158
+         itemID == CollectibleType.COLLECTIBLE_D20 or -- 166
+         itemID == CollectibleType.COLLECTIBLE_WHITE_PONY or -- 181
+         itemID == CollectibleType.COLLECTIBLE_D100 or -- 283
+         itemID == CollectibleType.COLLECTIBLE_D4 or -- 284
+         itemID == CollectibleType.COLLECTIBLE_BOOK_OF_SECRETS or -- 287
+         itemID == CollectibleType.COLLECTIBLE_FLUSH or -- 291
+         itemID == CollectibleType.COLLECTIBLE_SATANIC_BIBLE or -- 292
+         itemID == CollectibleType.COLLECTIBLE_HEAD_OF_KRAMPUS or -- 293
+         itemID == CollectibleType.COLLECTIBLE_ISAACS_TEARS or -- 323
+         itemID == CollectibleType.COLLECTIBLE_UNDEFINED or -- 324
+         itemID == CollectibleType.COLLECTIBLE_BREATH_OF_LIFE or -- 326
+         itemID == CollectibleType.COLLECTIBLE_VOID or -- 477
+         itemID == CollectibleType.COLLECTIBLE_SMELTER or -- 479
+         itemID == CollectibleType.COLLECTIBLE_CLICKER then -- 482
+
+    charges = 6
+
+  elseif itemID == CollectibleType.COLLECTIBLE_YUM_HEART or -- 45
+         itemID == CollectibleType.COLLECTIBLE_BOOK_OF_SIN or -- 97
+         itemID == CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED or -- 43
+         itemID == CollectibleType.COLLECTIBLE_PONY or -- 130
+         itemID == CollectibleType.COLLECTIBLE_CRACK_THE_SKY or -- 160
+         itemID == CollectibleType.COLLECTIBLE_BLANK_CARD or -- 286
+         itemID == CollectibleType.COLLECTIBLE_PLACEBO or -- 348
+         itemID == CollectibleType.COLLECTIBLE_BOX_OF_FRIENDS or -- 357
+         itemID == CollectibleType.COLLECTIBLE_D8 or -- 406
+         itemID == CollectibleType.COLLECTIBLE_TELEPORT_2 or -- 419
+         itemID == CollectibleType.COLLECTIBLE_MOMS_BOX or -- 439
+         itemID == CollectibleType.COLLECTIBLE_D1 or -- 476
+         itemID == CollectibleType.COLLECTIBLE_DATAMINER or -- 481
+         itemID == CollectibleType.COLLECTIBLE_CROOKED_PENNY then -- 485
+
+    charges = 4
+
+  elseif itemID == CollectibleType.COLLECTIBLE_BOOK_OF_BELIAL or -- 34
+         itemID == CollectibleType.COLLECTIBLE_MOMS_BRA or -- 39
+         itemID == CollectibleType.COLLECTIBLE_MOMS_PAD or -- 41
+         itemID == CollectibleType.COLLECTIBLE_BOBS_ROTTEN_HEAD or -- 42
+         itemID == CollectibleType.COLLECTIBLE_BOOK_OF_SHADOWS or -- 58
+         itemID == CollectibleType.COLLECTIBLE_ANARCHIST_COOKBOOK or -- 65
+         itemID == CollectibleType.COLLECTIBLE_MONSTROS_TOOTH or -- 86
+         itemID == CollectibleType.COLLECTIBLE_MONSTER_MANUAL or -- 123
+         itemID == CollectibleType.COLLECTIBLE_BEST_FRIEND or -- 136
+         itemID == CollectibleType.COLLECTIBLE_NOTCHED_AXE or -- 147
+         itemID == CollectibleType.COLLECTIBLE_MEGA_BEAN or -- 351
+         itemID == CollectibleType.COLLECTIBLE_FRIEND_BALL or -- 382
+         itemID == CollectibleType.COLLECTIBLE_D12 or -- 386
+         itemID == CollectibleType.COLLECTIBLE_D7 then -- 437
+
+    charges = 3
+
+  elseif itemID == CollectibleType.COLLECTIBLE_MR_BOOM or -- 37
+         itemID == CollectibleType.COLLECTIBLE_TELEPORT or -- 44
+         itemID == CollectibleType.COLLECTIBLE_DOCTORS_REMOTE or -- 47
+         itemID == CollectibleType.COLLECTIBLE_SHOOP_DA_WHOOP or -- 49
+         itemID == CollectibleType.COLLECTIBLE_LEMON_MISHAP or -- 56
+         itemID == CollectibleType.COLLECTIBLE_HOURGLASS or -- 66
+         itemID == CollectibleType.COLLECTIBLE_DEAD_SEA_SCROLLS or -- 124
+         itemID == CollectibleType.COLLECTIBLE_SPIDER_BUTT or -- 171
+         itemID == CollectibleType.COLLECTIBLE_DADS_KEY or -- 175
+         itemID == CollectibleType.COLLECTIBLE_TELEPATHY_BOOK or -- 192
+         itemID == CollectibleType.COLLECTIBLE_BOX_OF_SPIDERS or -- 288
+         itemID == CollectibleType.COLLECTIBLE_SCISSORS or -- 325
+         itemID == CollectibleType.COLLECTIBLE_KIDNEY_BEAN or -- 421
+         itemID == CollectibleType.COLLECTIBLE_GLOWING_HOUR_GLASS or -- 422
+         itemID == CollectibleType.COLLECTIBLE_PAUSE or -- 478
+         itemID == CollectibleType.COLLECTIBLE_COMPOST or -- 480
+         itemID == CollectibleType.COLLECTIBLE_DULL_RAZOR or -- 486
+         itemID == CollectibleType.COLLECTIBLE_METRONOME or -- 488
+         itemID == CollectibleType.COLLECTIBLE_DINF then -- 489
+
+    charges = 2
+
+  elseif itemID == CollectibleType.COLLECTIBLE_POOP or -- 36
+         itemID == CollectibleType.COLLECTIBLE_TAMMYS_HEAD or -- 38
+         itemID == CollectibleType.COLLECTIBLE_BEAN or -- 111
+         itemID == CollectibleType.COLLECTIBLE_FORGET_ME_NOW or -- 127
+         itemID == CollectibleType.COLLECTIBLE_GUPPYS_HEAD or -- 145
+         itemID == CollectibleType.COLLECTIBLE_DEBUG or -- 235
+         itemID == CollectibleType.COLLECTIBLE_D10 or -- 285
+         itemID == CollectibleType.COLLECTIBLE_UNICORN_STUMP or -- 298
+         itemID == CollectibleType.COLLECTIBLE_WOODEN_NICKEL or -- 349
+         itemID == CollectibleType.COLLECTIBLE_TEAR_DETONATOR or -- 383
+         itemID == CollectibleType.COLLECTIBLE_MINE_CRAFTER or -- 427
+         itemID == CollectibleType.COLLECTIBLE_PLAN_C then -- 475
+
+    charges = 1
+
+  elseif itemID == CollectibleType.COLLECTIBLE_KAMIKAZE or -- 40
+         itemID == CollectibleType.COLLECTIBLE_RAZOR_BLADE or -- 126
+         itemID == CollectibleType.COLLECTIBLE_GUPPYS_PAW or -- 133
+         itemID == CollectibleType.COLLECTIBLE_IV_BAG or -- 135
+         itemID == CollectibleType.COLLECTIBLE_REMOTE_DETONATOR or -- 137
+         itemID == CollectibleType.COLLECTIBLE_PORTABLE_SLOT or -- 177
+         itemID == CollectibleType.COLLECTIBLE_BLOOD_RIGHTS or -- 186
+         itemID == CollectibleType.COLLECTIBLE_HOW_TO_JUMP or -- 282
+         itemID == CollectibleType.COLLECTIBLE_THE_JAR or -- 290
+         itemID == CollectibleType.COLLECTIBLE_MAGIC_FINGERS or -- 295
+         itemID == CollectibleType.COLLECTIBLE_CONVERTER or -- 296
+         itemID == CollectibleType.COLLECTIBLE_BLUE_BOX or -- 297
+         itemID == CollectibleType.COLLECTIBLE_DIPLOPIA or -- 347
+         itemID == CollectibleType.COLLECTIBLE_JAR_OF_FLIES then -- 434
+
+    charges = 0
+  else
+    Isaac.DebugString("Error: Can't get the charges for a non-active item.")
+  end
+
+  return charges
 end
 
 function RacingPlus:RaceStart()
@@ -902,7 +902,7 @@ function RacingPlus:RaceStart()
 end
 
 -- This emulates what happens when you normally clear a room
-function RacingPlus:ManuallyClearCurrentRoom()
+function RacingPlus:FastClearRoom()
   -- Local variables
   local game = Game()
   local level = game:GetLevel()
@@ -936,67 +936,6 @@ function RacingPlus:ManuallyClearCurrentRoom()
 
   -- Spawns the award for clearing the room (the pickup, chest, etc.)
   room:SpawnClearAward() -- This takes into account their luck and so forth
-
-  -- After the reward is spawned, if it is a boss room, the trapdoor(s)
-  -- to the next floor will show up and the item pedestals will spawn
-  if room:GetType() == RoomType.ROOM_BOSS then
-    -- Check all the grid entities in the room
-    local num = room:GetGridSize()
-    for i = 1, num do
-      local gridEntity = room:GetGridEntity(i)
-      if gridEntity ~= nil then
-        -- If this entity is a trap door
-        local test = gridEntity:ToTrapdoor()
-        if test ~= nil then
-          if gridEntity:GetSaveState().VarData == 1 then
-            -- Delete Void Portals, which have a VarData of 1
-            room:RemoveGridEntity(i, 0, false) -- gridEntity:Destroy() does not work
-          elseif stage == 8 then
-            -- Delete the W2 normal trap door
-            if race ~= nil and race.goal == "Blue Baby" then
-              room:RemoveGridEntity(i, 0, false) -- gridEntity:Destroy() does not work
-            end
-          end
-        end
-      end
-    end
-
-    -- Check all the (non-grid) entities in the room
-    local entities = Isaac.GetRoomEntities()
-    for i = 1, #entities do
-      -- Check for The Polaroid (5.100.327)
-      if entities[i].Type == EntityType.ENTITY_PICKUP and
-         entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
-         entities[i].SubType == CollectibleType.COLLECTIBLE_POLAROID and
-		 race ~= nil and
-         race.goal == "The Lamb" then
-
-        entities[i]:Remove()
-        break
-      end
-
-      -- Check for The Negative (5.100.328)
-      if entities[i].Type == EntityType.ENTITY_PICKUP and
-         entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
-         entities[i].SubType == CollectibleType.COLLECTIBLE_NEGATIVE and
-		 race ~= nil and
-         race.goal == "Blue Baby" then
-
-        entities[i]:Remove()
-        break
-      end
-
-      -- Check for Heaven door (1000.39)
-      if entities[i].Type == EntityType.ENTITY_EFFECT and
-         entities[i].Variant == EffectVariant.HEAVEN_LIGHT_DOOR and
-		 race ~= nil and
-         race.goal == "The Lamb" then
-
-        entities[i]:Remove()
-        break
-      end
-    end
-  end
 
   -- Give a charge to the player's active item
   if player:NeedsCharge() == true then
@@ -1342,6 +1281,80 @@ function RacingPlus:ManuallyClearCurrentRoom()
       game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_GRAB_BAG, pos, vel, player, 0, RNGCounter.SackOfSacks)
     end
   end
+  
+  -- Do race specific deletions (The Polaroid, The Negative, etc.)
+  RacingPlus:RaceSpecificDeletions()
+end
+
+function RacingPlus:RaceSpecificDeletions()
+  -- Reading the save file failed on the same half second that they finished the boss
+  if race == nil then
+    -- Schedule a deletion on the next frame
+    raceVars.deleteRaceSpecific = true
+    return
+  end
+
+  -- Local variables
+  local game = Game()
+  local room = game:GetRoom()
+
+  -- After the reward is spawned, if it is a boss room, the trapdoor(s)
+  -- to the next floor will show up and the item pedestals will spawn
+  if room:GetType() == RoomType.ROOM_BOSS then
+    -- Check all the grid entities in the room
+    local num = room:GetGridSize()
+    for i = 1, num do
+      local gridEntity = room:GetGridEntity(i)
+      if gridEntity ~= nil then
+        -- If this entity is a trap door
+        local test = gridEntity:ToTrapdoor()
+        if test ~= nil then
+          if gridEntity:GetSaveState().VarData == 1 then
+            -- Delete Void Portals, which have a VarData of 1
+            room:RemoveGridEntity(i, 0, false) -- gridEntity:Destroy() does not work
+          elseif stage == 8 then
+            -- Delete the W2 normal trap door
+            if race.goal == "Blue Baby" then
+              room:RemoveGridEntity(i, 0, false) -- gridEntity:Destroy() does not work
+            end
+          end
+        end
+      end
+    end
+
+    -- Check all the (non-grid) entities in the room
+    local entities = Isaac.GetRoomEntities()
+    for i = 1, #entities do
+      -- Check for The Polaroid (5.100.327)
+      if entities[i].Type == EntityType.ENTITY_PICKUP and
+         entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
+         entities[i].SubType == CollectibleType.COLLECTIBLE_POLAROID and
+         race.goal == "The Lamb" then
+
+        entities[i]:Remove()
+        break
+      end
+
+      -- Check for The Negative (5.100.328)
+      if entities[i].Type == EntityType.ENTITY_PICKUP and
+         entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
+         entities[i].SubType == CollectibleType.COLLECTIBLE_NEGATIVE and
+         race.goal == "Blue Baby" then
+
+        entities[i]:Remove()
+        break
+      end
+
+      -- Check for Heaven door (1000.39)
+      if entities[i].Type == EntityType.ENTITY_EFFECT and
+         entities[i].Variant == EffectVariant.HEAVEN_LIGHT_DOOR and
+         race.goal == "The Lamb" then
+
+        entities[i]:Remove()
+        break
+      end
+    end
+  end
 end
 
 --
@@ -1353,46 +1366,6 @@ function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, Damag
   local game = Game()
   local level = game:GetLevel()
   local room = game:GetRoom()
-
-  --
-  -- Curse of the Crow
-  --
-
-  local player = TookDamage:ToPlayer()
-  if player ~= nil then
-    if player:HasCollectible(curseOfTheCrow) then
-      -- Find out if we have red hearts available to take
-      local redHearts = player:GetHearts()
-      if redHearts <= DamageAmount then
-        -- Let the game handle this as normal damage
-        Isaac.DebugString("Normal damage taken.")
-        return
-      end
-
-      -- Reduce our red hearts
-      local redHeartDamage = DamageAmount * -1
-      player:AddHearts(redHeartDamage)
-
-      -- Play the damage animation
-      player:PlayExtraAnimation("Hit")
-
-      -- Play the damage sound
-      local entity = game:Spawn(EntityType.ENTITY_FLY, 0, Vector(0, 0), Vector(0,0), nil, 0, 0)
-      local npc = entity:ToNPC()
-      npc:PlaySound(SoundEffect.SOUND_ISAAC_HURT_GRUNT, 1, 0, false, 1) -- ID, Volume, FrameDelay, Loop, Pitch
-      entity:Remove()
-
-      -- Set the correct amount of invulnerability frames
-      player:SetMinDamageCooldown(DamageAmount * 60)
-
-      -- Reduce our devil deal chance (both of these are needed)
-      level:SetRedHeartDamage(true)
-      room:SetRedHeartDamage(true)
-
-      -- Don't let the game handle this as normal damage
-      return false
-    end
-  end
 
   --
   -- Globins + Knights stuff
@@ -1413,15 +1386,6 @@ function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, Damag
       lastState = npc.State,
       regens    = 0,
     }
-  end
-
-  -- We want to "unstick" Knights if they take damage
-  if (npc.Type == EntityType.ENTITY_KNIGHT or -- 41
-      npc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
-      npc.Type == EntityType.ENTITY_BONE_KNIGHT) and -- 283
-     run.currentKnights[npc.Index].damaged == false then
-
-    run.currentKnights[npc.Index].damaged = true
   end
 end
 
@@ -1552,7 +1516,7 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
   end
 
   if race == nil then
-    return
+    return -- If "save.dat" reading fails, then there is no fallback mechanism for this, so hopefully it does not fail
   end
 
   for i = 1, #race.startingItems do
@@ -1564,7 +1528,6 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
   end
 end
 
--- Crow Curse, Knight invulnerability frame removal and fast-clear stuff
 function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
   local game = Game()
@@ -1583,14 +1546,26 @@ function RacingPlus:NPCUpdate(aNpc)
       aNpc.Type == EntityType.ENTITY_FLOATING_KNIGHT or -- 254
       aNpc.Type == EntityType.ENTITY_BONE_KNIGHT) and -- 283
      aNpc.FrameCount >= 5 and
-     aNpc.FrameCount <= 30 and
-     run.currentKnights[aNpc.Index].damaged == false then
+     aNpc.FrameCount <= 30 then
 
     -- Keep the 5th frame of the spawn animation going
     aNpc:GetSprite():SetFrame("Down", 0)
 
     -- Make sure that it stays in place
     aNpc.Position = run.currentKnights[aNpc.Index].pos
+    aNpc.Velocity = Vector(0, 0)
+  end
+
+  --
+  -- Lock Lil' Haunts that are in the "warmup" animation
+  --
+
+  if (aNpc.Type == EntityType.ENTITY_THE_HAUNT and aNpc.Variant == 10) and -- 260
+     aNpc.FrameCount >= 5 and
+     aNpc.FrameCount <= 16 then
+
+    -- Make sure that it stays in place
+    aNpc.Position = run.currentLilHaunts[aNpc.Index].pos
     aNpc.Velocity = Vector(0, 0)
   end
 
@@ -1631,10 +1606,10 @@ function RacingPlus:NPCUpdate(aNpc)
     end
   end
 
-  RacingPlus:CheckAlive()
+  RacingPlus:FastClearCheckAlive()
 end
 
-function RacingPlus:CheckAlive()
+function RacingPlus:FastClearCheckAlive()
   -- Check all the (non-grid) entities in the room to see if anything is alive
   local allDead = true
   local entities = Isaac.GetRoomEntities()
@@ -1692,7 +1667,7 @@ function RacingPlus:CheckAlive()
   end
   if allDead then
     -- Manually clear the room, emulating all the steps that the game does
-    RacingPlus:ManuallyClearCurrentRoom()
+    RacingPlus:FastClearRoom()
   end
 end
 
@@ -1731,22 +1706,106 @@ function RacingPlus:PostRender()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
+  local playerSprite = player:GetSprite()
   local maxHearts = player:GetMaxHearts()
   local isaacFrameCount = Isaac:GetFrameCount()
 
+  --
+  -- Read the "save.dat" file for updates from the Racing+ client
+  --
+
+  if race == nil or -- The "race" table will only be nil if reading the "save.dat" file failed
+     raceVars.loadNextFrame or -- We explicitly need to check for updates on this frame
+     (race.status == "starting" and isaacFrameCount % 2 == 0) or -- We want to check for updates every other frame if the race is starting so that the countdown is smooth
+     isaacFrameCount % 30 == 0 then -- Otherwise, only check for updates every half second, since file reads are expensive
+
+    -- The server will write data for us to the "save.dat" file in the mod subdirectory
+    -- From: https://www.reddit.com/r/themoddingofisaac/comments/5q3ml0/tutorial_saving_different_moddata_for_each_run/
+    if race ~= nil then
+      oldRace = race
+    end
+    race = load("return " .. Isaac.LoadModData(RacingPlus))() -- This loads the "save.dat" file
+
+    -- Sometimes loading can fail, I'm not sure why; give up for now and try again on the next frame
+    if race == nil then
+      Isaac.DebugString("Loading the \"save.dat\" file failed. Trying again on the next frame...")
+      return
+    end
+
+    -- If anything changed, write it to the log
+    if oldRace.status ~= race.status then
+      Isaac.DebugString("ModData status changed: " .. race.status)
+    end
+    if oldRace.rType ~= race.rType then
+      Isaac.DebugString("ModData rType changed: " .. race.rType)
+    end
+    if oldRace.rFormat ~= race.rFormat then
+      Isaac.DebugString("ModData rFormat changed: " .. race.rFormat)
+    end
+    if oldRace.character ~= race.character then
+      Isaac.DebugString("ModData character changed: " .. race.character)
+    end
+    if oldRace.goal ~= race.goal then
+      Isaac.DebugString("ModData goal changed: " .. race.goal)
+    end
+    if oldRace.seed ~= race.seed then
+      Isaac.DebugString("ModData seed changed: " .. race.seed)
+    end
+    if #oldRace.startingItems ~= #race.startingItems then
+      Isaac.DebugString("ModData startingItems amount changed: " .. tostring(#race.startingItems))
+    end
+    if oldRace.schoolBag ~= race.schoolBag then
+      Isaac.DebugString("ModData schoolBag changed: " .. tostring(race.schoolBag))
+    end
+    if oldRace.currentSeed ~= race.currentSeed then
+      Isaac.DebugString("ModData currentSeed changed: " .. race.currentSeed)
+    end
+    if oldRace.countdown ~= race.countdown then
+      Isaac.DebugString("ModData countdown changed: " .. tostring(race.countdown))
+    end
+  end
+
+  -- Make sure that some race related variables are reset
+  -- (we need to check for "open" because it is possible to quit at the main menu and then join another race before starting the game)
+  if race.status == "none" or race.status == "open" then
+    raceVars.hourglassUsed = false
+    raceVars.started = false
+    raceVars.startedTime = 0 -- Remove the timer after we finish or quit a race (1/2)
+    spriteInit("clock", 0) -- Remove the timer after we finish or quit a race (2/2)
+    raceVars.updateCache = 0
+  end
+
+  -- Since race loading succeeded, we need to check if we need to do race specific deletions
+  if raceVars.deleteRaceSpecific then
+    raceVars.deleteRaceSpecific = false
+    RacingPlus:RaceSpecificDeletions()
+  end
+
+  --
+  -- Draw graphics
+  --
+
+  spriteDisplay()
+  spriteDisplaySchoolBag()
+
+  --
   -- Check to see if we are starting a run
   -- (this does not work if we put it in a PostUpdate callback because that only starts on the first frame of movement)
   -- (this does not work if we put it in a PlayerInit callback because Eve/Keeper are given their active items after the callback has fired)
+  --
 
-  if gameFrameCount == 0 and run.initializing == false then
+  if gameFrameCount == 0 and run.initializing == false then -- This will be at 0 until the first frame of player movement
     run.initializing = true
     RacingPlus:RunInit()
   elseif gameFrameCount > 0 and run.initializing == true then
     run.initializing = false
   end
 
+  --
   -- Keep track of when we change floors
   -- (this has to be in the PostRender callback because we don't want to wait for the floor transition animation to complete before teleporting away from the Dark Room)
+  --
+
   if stage ~= run.currentFloor then
     -- Find out if we performed a Sacrifice Room teleport
     if stage == 11 and stageType == 0 and run.currentFloor ~= 10 then -- 11.0 is Dark Room
@@ -1766,17 +1825,16 @@ function RacingPlus:PostRender()
     RNGCounter.Teleport = floorSeed
     RNGCounter.Undefined = floorSeed
     RNGCounter.Telepills = floorSeed
-    for i = 1, 100 do -- Increment the RNG 100 times so that players cannot use knowledge of Teleport! teleports to determine where the Telepills destination will be
+    for i = 1, 200 do -- Increment the RNG 100 times so that players cannot use knowledge of Teleport! teleports to determine where the Telepills destination will be
       RNGCounter.Telepills = incrementRNG(RNGCounter.Telepills)
     end
 
     -- Spawn Mega Satan key pieces
-    if race ~= nil and
-       race.goal == "Mega Satan" and
+    if race.goal == "Mega Satan" and
        stage == 11 and
-       run.placedKeys == false then
+       raceVars.placedKeys == false then
 
-      run.placedKeys = true
+      raceVars.placedKeys = true
 
       -- Key Piece 1 (5.100.238)
       -- 275,175 & 375, 175
@@ -1787,16 +1845,25 @@ function RacingPlus:PostRender()
     end
   end
 
+  --
   -- Keep track of when we change rooms
   -- (this has to be in the PostRender callback because we want the "Go!" graphic to be removed at the beginning of the room transition animation, not the end)
+  --
+
   if roomFrameCount == 0 and run.roomEntering == false then
      run.roomEntering = true
      run.roomsEntered = run.roomsEntered + 1
      run.currentRoomClearState = clear -- This is needed so that we don't get credit for clearing a room when bombing from a room with enemies into an empty room
 
-    -- Reset the current room's Globins (used for softlock prevention) and Knights (used to delete invulnerability frames)
-    run.currentGlobins = {}
-    run.currentKnights = {}
+    -- Reset the lists we use to keep track of certain enemies
+    run.currentGlobins = {} -- Used for softlock prevention
+    run.currentKnights = {} -- Used to delete invulnerability frames
+    run.currentLilHaunts = {} -- Used to delete invulnerability frames
+
+    -- Clear the teleporting flag
+    if run.teleporting then
+      run.teleporting = false
+    end
 
     -- Check to see if we need to remove the heart container from a Strength card on Keeper
     if run.keeperUsedStrength and run.keeperBaseHearts == 4 then
@@ -1819,7 +1886,18 @@ function RacingPlus:PostRender()
   end
 
   --
-  -- Fix seed incrementation from touching active pedestal items
+  -- Make Cursed Eye seeded
+  --
+
+  if player:HasCollectible(CollectibleType.COLLECTIBLE_CURSED_EYE) and -- 316
+     playerSprite:IsPlaying("TeleportUp") and
+     run.teleporting == false then -- Only catch Cursed Eye teleports
+
+    RacingPlus:Teleport()
+  end
+
+  --
+  -- Fix seed "incrementation" from touching active pedestal items
   -- (this also fixes Angel key pieces and Pandora's Box items being unseeded)
   --
 
@@ -1830,6 +1908,7 @@ function RacingPlus:PostRender()
     if entities[i].Type == EntityType.ENTITY_PICKUP and -- If this is a pedestal item (5.100)
        entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
        entities[i].InitSeed ~= roomSeed and
+       gameFrameCount >= run.itemReplacementDelay and -- We need to delay after using a Void (in case the player has consumed a D6)
        room:GetType() ~= RoomType.ROOM_SHOP then -- Skip shops for now because of the "item on sale" bug and the "rerolling into consumables" bug
 
       -- Check to see if we already replaced it with a seeded pedestal
@@ -1848,7 +1927,7 @@ function RacingPlus:PostRender()
 
         -- Check to see if this is a B1 item room on a seeded race
         local offLimits = false
-        if race ~= nil and race.rFormat == "seeded" and
+        if race.rFormat == "seeded" and
            stage == 1 and
            room:GetType() == RoomType.ROOM_TREASURE and
            entities[i].SubType ~= CollectibleType.COLLECTIBLE_OFF_LIMITS then
@@ -1946,78 +2025,8 @@ function RacingPlus:PostRender()
   end
 
   --
-  -- Draw graphics
+  -- Do race specific stuff
   --
-
-  spriteDisplay()
-  spriteDisplaySchoolBag()
-
-  --
-  -- Do race stuff / draw graphics
-  --
-
-  -- Decide if we need to check the "save.dat" file for updates from the Racing+ client
-  if race == nil or -- The "race" table will only be nil if reading the "save.dat" file failed
-     raceLoadNextFrame or -- We explicitly need to check for updates on this frame
-     race.status == "starting" or -- We want to check for updates every frame if the race is starting so that the countdown is smooth
-     isaacFrameCount % 30 == 0 then -- Otherwise, only check for updates every half second (file reads are expensive)
-
-    -- The server will write data for us to the "save.dat" file in the mod subdirectory
-    -- From: https://www.reddit.com/r/themoddingofisaac/comments/5q3ml0/tutorial_saving_different_moddata_for_each_run/
-    local oldRace = race
-    race = load("return " .. Isaac.LoadModData(RacingPlus))() -- This loads the "save.dat" file
-
-    -- Sometimes loading can fail, I'm not sure why; give up for now and try again on the next frame
-    if race == nil then
-      Isaac.DebugString("Loading the \"save.dat\" file failed. Trying again on the next frame...")
-      return
-    end
-
-    -- If anything changed, write it to the log
-    if oldRace == nil then
-      return
-    end
-    if oldRace.status ~= race.status then
-      Isaac.DebugString("ModData status changed: " .. race.status)
-    end
-    if oldRace.rType ~= race.rType then
-      Isaac.DebugString("ModData rType changed: " .. race.rType)
-    end
-    if oldRace.rFormat ~= race.rFormat then
-      Isaac.DebugString("ModData rFormat changed: " .. race.rFormat)
-    end
-    if oldRace.character ~= race.character then
-      Isaac.DebugString("ModData character changed: " .. race.character)
-    end
-    if oldRace.goal ~= race.goal then
-      Isaac.DebugString("ModData goal changed: " .. race.goal)
-    end
-    if oldRace.seed ~= race.seed then
-      Isaac.DebugString("ModData seed changed: " .. race.seed)
-    end
-    if #oldRace.startingItems ~= #race.startingItems then
-      Isaac.DebugString("ModData startingItems amount changed: " .. tostring(#race.startingItems))
-    end
-    if oldRace.currentSeed ~= race.currentSeed then
-      Isaac.DebugString("ModData currentSeed changed: " .. race.currentSeed)
-    end
-    if oldRace.countdown ~= race.countdown then
-      Isaac.DebugString("ModData countdown changed: " .. tostring(race.countdown))
-    end
-  end
-
-  -- Since race loading succeeded, we need to check to see if we have done a once-per-run race initiailization
-  RacingPlus:RunInitForRace()
-
-  -- Make sure that some race related variables are reset
-  -- (we need to check for "open" because it is possible to quit at the main menu and then join another race before starting the game)
-  if race.status == "none" or race.status == "open" then
-    raceVars.hourglassUsed = false
-    raceVars.started = false
-    raceVars.startedTime = 0 -- Remove the timer after we finish or quit a race (1/2)
-    spriteInit("clock", 0) -- Remove the timer after we finish or quit a race (2/2)
-    raceVars.updateCache = 0
-  end
 
   -- If we are not in a run, do nothing
   if race.status == "none" then
@@ -2028,24 +2037,32 @@ function RacingPlus:PostRender()
   if raceVars.blckCndlOn == false and raceVars.startedTime == 0 then
     spriteInit("top", "errorBlckCndl")
     return
+  elseif spriteTable.top ~= nil and spriteTable.top.spriteName == "errorBlckCndl" then
+    spriteInit("top", 0)
   end
 
   -- Check to see if we are on hard mode
   if raceVars.difficulty ~= 0 and raceVars.startedTime == 0 then
     spriteInit("top", "errorHardMode")
     return
+  elseif spriteTable.top ~= nil and spriteTable.top.spriteName == "errorHardMode" then
+    spriteInit("top", 0)
   end
 
   -- Check to see if we are on the right character
   if race.character ~= raceVars.character and raceVars.startedTime == 0 then
     spriteInit("top", "errorCharacter")
     return
+  elseif spriteTable.top ~= nil and spriteTable.top.spriteName == "errorCharacter" then
+    spriteInit("top", 0)
   end
 
   -- Check to see if we are on the right seed
   if race.seed ~= "-" and race.seed ~= race.currentSeed and raceVars.startedTime == 0 then
     spriteInit("top", "errorSeed")
     return
+  elseif spriteTable.top ~= nil and spriteTable.top.spriteName == "errorSeed" then
+    spriteInit("top", 0)
   end
 
   -- Hold the player in place if the race has not started yet (emulate the Gaping Maws effect)
@@ -2057,6 +2074,8 @@ function RacingPlus:PostRender()
   -- Show the "Wait for the race to begin!" graphic/text
   if race.status == "open" then
     spriteInit("top", "wait")
+  elseif spriteTable.top ~= nil and spriteTable.top.spriteName == "wait" then
+    spriteInit("top", 0)
   end
 
   -- For some reason, Glowing Hour Glass does not update the cache properly for some items, so update the cache manually
@@ -2142,13 +2161,13 @@ end
 function RacingPlus:PostUpdate()
   -- Local variables
   local game = Game()
+  local gameFrameCount = game:GetFrameCount()
   local level = game:GetLevel()
   local stage = level:GetStage()
   local room = game:GetRoom()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
-  local playerSprite = player:GetSprite()
   local isaacFrameCount = Isaac:GetFrameCount()
 
   --
@@ -2231,13 +2250,13 @@ function RacingPlus:PostUpdate()
         if test ~= nil then
           if gridEntity:GetSaveState().State ~= 3 then
             allPushed = false
-            return
+            break
           end
         end
       end
     end
     if allPushed then
-      RacingPlus:CheckAlive()
+      RacingPlus:FastClearCheckAlive()
     end
   end
 
@@ -2260,6 +2279,17 @@ function RacingPlus:PostUpdate()
     end
   end
 
+  --
+  -- Check for The Book of Sin (for Bookworm)
+  --
+
+  if player:HasCollectible(CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) and run.touchedBookOfSin == false then
+    run.touchedBookOfSin = true
+    player:AddCollectible(CollectibleType.COLLECTIBLE_BOOK_OF_SIN, 0, false)
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_BOOK_OF_SIN))
+    player:AddCollectible(CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED, 4, false)
+  end
+
   -- Check all the (non-grid) entities in the room
   local entities = Isaac.GetRoomEntities()
   for i = 1, #entities do
@@ -2279,7 +2309,7 @@ function RacingPlus:PostUpdate()
     end
 
     --
-    -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, and Red Ghosts
+    -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, Red Ghosts, and Lil' Haunts
     --
 
     local npc = entities[i]:ToNPC()
@@ -2293,7 +2323,6 @@ function RacingPlus:PostUpdate()
         if run.currentKnights[npc.Index] == nil then
           run.currentKnights[npc.Index] = {
            pos = npc.Position,
-           damaged = false,
          }
         end
 
@@ -2323,9 +2352,44 @@ function RacingPlus:PostUpdate()
              npc.Type == EntityType.ENTITY_RED_GHOST then -- 285
 
         -- Wizoobs and Red Ghosts
+        -- Make it so that tears don't pass through them
         if npc.FrameCount == 1 then -- (most NPCs are only visable on the 4th frame, but these are visible immediately)
           -- The ghost is set to ENTCOLL_NONE until the first reappearance
           npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL
+        end
+
+        -- Speed up their attack pattern
+        if npc.State == 3 and npc.StateFrame ~= 0 then -- State 3 is when they are disappeared and doing nothing
+          npc.StateFrame = 0 -- StateFrame decrements down from 60 to 0, so just jump ahead
+        end
+
+      elseif npc.Type == EntityType.ENTITY_THE_HAUNT and npc.Variant == 10 then -- 260
+        -- Lil' Haunts
+        -- Find out if The Haunt is in the room
+          if run.currentLilHaunts[npc.Index] == nil then
+          local dontTouch = false
+          for j = 1, #entities do
+            local npc2 = entities[j]:ToNPC()
+            if npc2 ~= nil then
+              if npc2.Type == EntityType.ENTITY_THE_HAUNT and npc2.Variant == 0 then -- 260
+                dontTouch = true
+              end
+            end
+          end
+
+          -- Add their position to the table so that we can keep track of it on future frames
+          run.currentLilHaunts[npc.Index] = {
+            pos = npc.Position,
+            dontTouch = dontTouch,
+          }
+        end
+        if run.currentLilHaunts[npc.Index].dontTouch == false and -- Don't mess with Lil' Haunts if there is The Haunt in the room
+           npc.FrameCount == 4 then
+
+          -- Lil' Haunts also have invulnerability frames
+          npc.State = 4 -- Changing the NPC's state triggers the invulnerability removal in the next frame
+          npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL -- Tears will pass through Lil' Haunts when they first spawn, so fix that
+          npc.Visible = true -- If we don't do this, they will be invisible after being spawned by a Haunt
         end
       end
     end
@@ -2335,7 +2399,7 @@ function RacingPlus:PostUpdate()
   -- Check for input for a fast item drop
   --
 
-  if race ~= nil and
+  if race ~= nil and -- We have to check for this since we are in the PostUpdate callback
      race.schoolBag == false and
      player:HasCollectible(CollectibleType.COLLECTIBLE_STARTER_DECK) == false and -- 251
      player:HasCollectible(CollectibleType.COLLECTIBLE_LITTLE_BAGGY) == false and -- 252
@@ -2371,14 +2435,13 @@ function RacingPlus:PostUpdate()
   -- Check for input for a School Bag switch
   --
 
-  if race ~= nil and
+  if race ~= nil and -- We have to check for this since we are in the PostUpdate callback
      race.schoolBag == true and
      player:IsHoldingItem() == false and
      isaacFrameCount >= run.schoolBagFrame then
 
     for i = 0, 3 do -- There are 4 possible players from 0 to 3
       if Input.IsActionPressed(ButtonAction.ACTION_DROP, i) then -- 11
-        Isaac.DebugString("Used School Bag (on frame " .. tostring(isaacFrameCount) .. ").")
         -- Set a new cooldown period so that we can't spam this
         run.schoolBagFrame = isaacFrameCount + 20 -- 1/3 of a second
 
@@ -2452,6 +2515,8 @@ function RacingPlus:BookOfSin()
   return true
 end
 
+-- This callback is naturally used by Broken Remote
+-- This callback is manually called for Cursed Eye
 function RacingPlus:Teleport()
   -- Local variables
   local game = Game()
@@ -2465,11 +2530,12 @@ function RacingPlus:Teleport()
   local gridIndex = rooms:Get(roomIndex).GridIndex
 
   -- Teleport
+  run.teleporting = true -- Mark that this is not a Cursed Eye teleport
   level.LeaveDoor = -1 -- You have to set this before every teleport or else it will send you to the wrong room
   game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
-  Isaac.DebugString("Teleport! to room: " .. tostring(gridIndex))
+  Isaac.DebugString("Teleport! / Broken Remote / Cursed Eye to room: " .. tostring(gridIndex))
 
-  -- This will override the existing Teleport effect because we have already locked in a room transition
+  -- This will override the existing Teleport! / Broken Remote effect because we have already locked in a room transition
 end
 
 function RacingPlus:Undefined()
@@ -2519,6 +2585,7 @@ function RacingPlus:Undefined()
   local gridIndex = roomIndexes[math.random(1, #roomIndexes)]
  
   -- Teleport
+  run.teleporting = true -- Mark that this is not a Cursed Eye teleport
   level.LeaveDoor = -1 -- You have to set this before every teleport or else it will send you to the wrong room
   game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
   Isaac.DebugString("Undefined to room: " .. tostring(gridIndex))
@@ -2527,10 +2594,23 @@ function RacingPlus:Undefined()
 end
 
 function RacingPlus:MegaBlast()
+  -- This is necessary because Mega Blast bugs out if Glowing Hour Glass is used while the blast is occuring
   local game = Game()
   local player = game:GetPlayer(0)
   player:AnimateSad()
   return true
+end
+
+function RacingPlus:Void()
+  -- We need to delay item replacement after using a Void (in case the player has consumed a D6)
+  local game = Game()
+  local gameFrameCount = game:GetFrameCount()
+  run.itemReplacementDelay = gameFrameCount + 5 -- Stall for 5 frames
+end
+
+function RacingPlus:TeleportCard()
+  -- Mark that this is not a Cursed Eye teleport
+  run.teleporting = true
 end
 
 function RacingPlus.StrengthCard()
@@ -2591,6 +2671,7 @@ function RacingPlus:Telepills()
   local gridIndex = roomIndexes[math.random(1, #roomIndexes)]
 
   -- Teleport
+  run.teleporting = true -- Mark that this is not a Cursed Eye teleport
   level.LeaveDoor = -1 -- You have to set this before every teleport or else it will send you to the wrong room
   game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
   Isaac.DebugString("Telepills to room: " .. tostring(gridIndex))
@@ -2655,11 +2736,17 @@ RacingPlus:AddCallback(ModCallbacks.MC_POST_PLAYER_INIT, RacingPlus.PlayerInit)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,      RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,      RacingPlus.PostUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT) -- 44
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT) -- 44 (this callback is also used by Broken Remote)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, megaBlastPlaceholder) -- Mega Blast (Placeholder)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER) -- Mega Blast (Placeholder) (custom item, 59)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Void, CollectibleType.COLLECTIBLE_VOID) -- 477
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         debugFunction, CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 263)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.StrengthCard, Card.CARD_STRENGTH)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_PILL,         RacingPlus.Telepills, PillEffect.PILLEFFECT_TELEPILLS)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_FOOL) -- 1
+RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_EMPEROR) -- 5
+RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_HERMIT) -- 10
+RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.StrengthCard, Card.CARD_STRENGTH) -- 12
+RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_STARS) -- 18
+RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_MOON) -- 19
+RacingPlus:AddCallback(ModCallbacks.MC_USE_PILL,         RacingPlus.Telepills, PillEffect.PILLEFFECT_TELEPILLS) -- 19
 
 -- Missing item IDs: 43, 59, 61, 235, 263

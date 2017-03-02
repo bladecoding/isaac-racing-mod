@@ -94,8 +94,8 @@ Historically, most speedruns and races have been unseeded with the goal of killi
 ### Seeded
 
 * All characters start with The Compass in addition to their other items.
+* The Cain's Eye trinket is removed from the game.
 * All characters start with the School Bag (from Antibirth). (This is experimental and is subject to change.)
-* The Broken Remote trinket and the Cain's Eye trinket are removed from the game.
 
 ### Diversity
 
