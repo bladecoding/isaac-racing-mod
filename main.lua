@@ -6,7 +6,6 @@
 --[[
 
 TODO:
-- Get rid of Blank card animation when teleporting
 - Make Scollex deterministic
 - Make Void Portals seeded
 - Look into Duality changing narrow boss rooms
@@ -64,7 +63,11 @@ local run = {
   keeperUsedStrength    = false,
   itemReplacementDelay  = 0,
   teleporting           = false,
-  usedTelepills         = false,
+  usedTeleport          = false,
+  crawlspaceEntering    = false,
+  crawlspaceExiting     = false,
+  crawlspaceRoom        = 0,
+  crawlspacePosition    = 0,
   touchedBookOfSin      = false,
   schoolBagItem         = 0,
   schoolBagMaxCharges   = 0,
@@ -128,7 +131,6 @@ RoomTransition = { -- Spaded by ilise rose (@yatboim)
   TRANSITION_DEFAULT = 1,
   TRANSITION_STAGE = 2,
   TRANSITION_TELEPORT = 3,
-  TRANSITION_4 = 4,
   TRANSITION_ANKH = 5,
   TRANSITION_DEAD_CAT = 6,
   TRANSITION_1UP = 7,
@@ -152,47 +154,6 @@ LevelGridIndex = { -- Spaded by me
 Isaac.DebugString("+----------------------+")
 Isaac.DebugString("| Racing+ initialized. |")
 Isaac.DebugString("+----------------------+")
-
---
--- Table subroutines
--- From: http://lua-users.org/wiki/TableUtils
---
-
-function tableval_to_str ( v )
-  if "string" == type( v ) then
-    v = string.gsub( v, "\n", "\\n" )
-    if string.match( string.gsub(v,"[^'\"]",""), '^"+$' ) then
-      return "'" .. v .. "'"
-    end
-    return '"' .. string.gsub(v,'"', '\\"' ) .. '"'
-  else
-    return "table" == type( v ) and tabletostring( v ) or
-      tostring( v )
-  end
-end
-
-function tablekey_to_str ( k )
-  if "string" == type( k ) and string.match( k, "^[_%a][_%a%d]*$" ) then
-    return k
-  else
-    return "[" .. tableval_to_str( k ) .. "]"
-  end
-end
-
-function tabletostring( tbl )
-  local result, done = {}, {}
-  for k, v in ipairs( tbl ) do
-    table.insert( result, tableval_to_str( v ) )
-    done[ k ] = true
-  end
-  for k, v in pairs( tbl ) do
-    if not done[ k ] then
-      table.insert( result,
-        tablekey_to_str( k ) .. "=" .. tableval_to_str( v ) )
-    end
-  end
-  return "{" .. table.concat( result, "," ) .. "}"
-end
 
 --
 -- Math subroutines
@@ -415,7 +376,11 @@ function RacingPlus:RunInit()
   run.keeperUsedStrength = false
   run.itemReplacementDelay = 0
   run.teleporting = false
-  run.usedTelepills = false
+  run.usedTeleport = false
+  run.crawlspaceEntering = false
+  run.crawlspaceExiting = false
+  run.crawlspaceRoom = 0
+  run.crawlspacePosition = 0
   run.touchedBookOfSin = false
   run.schoolBagItem = 0
   run.schoolBagMaxCharges = 0
@@ -953,10 +918,12 @@ function RacingPlus:FastClearRoom()
 
   -- Play the sound effect for the door opening
   -- (the only way to play sounds is to attach them to an NPC, so we have to create one and then destroy it)
-  local entity = game:Spawn(EntityType.ENTITY_FLY, 0, Vector(0, 0), Vector(0,0), nil, 0, 0)
-  local npc = entity:ToNPC()
-  npc:PlaySound(SoundEffect.SOUND_DOOR_HEAVY_OPEN, 1, 0, false, 1) -- ID, Volume, FrameDelay, Loop, Pitch
-  entity:Remove()
+  if room:GetType() ~= RoomType.ROOM_DUNGEON then -- 16
+    local entity = game:Spawn(EntityType.ENTITY_FLY, 0, Vector(0, 0), Vector(0,0), nil, 0, 0)
+    local npc = entity:ToNPC()
+    npc:PlaySound(SoundEffect.SOUND_DOOR_HEAVY_OPEN, 1, 0, false, 1) -- ID, Volume, FrameDelay, Loop, Pitch
+    entity:Remove()
+  end
 
   -- Emulate various familiars dropping things
   local newRoomsCleared = run.roomsCleared + 1
@@ -1287,13 +1254,6 @@ function RacingPlus:FastClearRoom()
 end
 
 function RacingPlus:RaceSpecificDeletions()
-  -- Reading the save file failed on the same half second that they finished the boss
-  if race == nil then
-    -- Schedule a deletion on the next frame
-    raceVars.deleteRaceSpecific = true
-    return
-  end
-
   -- Local variables
   local game = Game()
   local room = game:GetRoom()
@@ -1301,6 +1261,14 @@ function RacingPlus:RaceSpecificDeletions()
   -- After the reward is spawned, if it is a boss room, the trapdoor(s)
   -- to the next floor will show up and the item pedestals will spawn
   if room:GetType() == RoomType.ROOM_BOSS then
+    -- Reading the save file failed on the same half second that they finished the boss
+    if race == nil then
+      -- Schedule a deletion on the next frame
+      raceVars.deleteRaceSpecific = true
+      Isaac.DebugString("Race loading failed at the same time we cleared the boss room.")
+      return
+    end
+
     -- Check all the grid entities in the room
     local num = room:GetGridSize()
     for i = 1, num do
@@ -1324,6 +1292,7 @@ function RacingPlus:RaceSpecificDeletions()
 
     -- Check all the (non-grid) entities in the room
     local entities = Isaac.GetRoomEntities()
+    Isaac.DebugString("Checking for Polaroid/Negative/Heaven.")
     for i = 1, #entities do
       -- Check for The Polaroid (5.100.327)
       if entities[i].Type == EntityType.ENTITY_PICKUP and
@@ -1707,7 +1676,6 @@ function RacingPlus:PostRender()
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
   local playerSprite = player:GetSprite()
-  local maxHearts = player:GetMaxHearts()
   local isaacFrameCount = Isaac:GetFrameCount()
 
   --
@@ -1860,9 +1828,38 @@ function RacingPlus:PostRender()
     run.currentKnights = {} -- Used to delete invulnerability frames
     run.currentLilHaunts = {} -- Used to delete invulnerability frames
 
-    -- Clear the teleporting flag
-    if run.teleporting then
-      run.teleporting = false
+    -- Clear some room-based flags
+    run.teleporting = false
+    run.crawlspaceEntering = false
+    if run.crawlspaceExiting then
+      run.crawlspaceExiting = false
+      player.Position = run.crawlspacePosition
+      
+      -- Make the player visible (we gave them 100 Binkies before to make them invisible)
+      local hearts = player:GetHearts()
+      local maxHearts = player:GetMaxHearts()
+      local soulHearts = player:GetSoulHearts()
+      local blackHearts = player:GetBlackHearts()
+      for i = 1, 100 do -- The Magic Mushroom size increase corresponds exactly to the size decrease for Binky
+        player:AddCollectible(CollectibleType.COLLECTIBLE_MAGIC_MUSHROOM, 0, false) -- 12
+        player:RemoveCollectible(CollectibleType.COLLECTIBLE_MAGIC_MUSHROOM)
+        Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_MAGIC_MUSHROOM))
+      end
+
+      -- Get rid of the red hearts that we added
+      player:AddMaxHearts(-24, true) -- Remove all hearts
+      player:AddSoulHearts(-24)
+      player:AddMaxHearts(maxHearts, true)
+      player:AddHearts(hearts)
+      for i = 1, soulHearts do
+        local bitPosition = math.floor((i - 1) / 2)
+        local bit = (blackHearts & (1 << bitPosition)) >> bitPosition
+        if bit == 0 then -- Soul heart
+          player:AddSoulHearts(1)
+        else -- Black heart
+          player:AddBlackHearts(1)
+        end
+      end
     end
 
     -- Check to see if we need to remove the heart container from a Strength card on Keeper
@@ -1877,11 +1874,11 @@ function RacingPlus:PostRender()
   end
 
   --
-  -- Stop the pill animation after using Telepills
+  -- Stop the animation after using Telepills or Blank Card
   --
 
-  if run.usedTelepills then
-    run.usedTelepills = false
+  if run.usedTeleport then
+    run.usedTeleport = false
     player:StopExtraAnimation()
   end
 
@@ -1894,6 +1891,67 @@ function RacingPlus:PostRender()
      run.teleporting == false then -- Only catch Cursed Eye teleports
 
     RacingPlus:Teleport()
+  end
+
+  --
+  -- Remove the animation when entering/leaving crawlspaces
+  --
+
+  -- Check all the grid entities in the room
+  local num = room:GetGridSize()
+  for i = 1, num do
+    local gridEntity = room:GetGridEntity(i)
+    if gridEntity ~= nil then
+      -- If this entity is stairs (a trapdoor to a crawlspace)
+      if gridEntity:GetSaveState().Type == 18 then
+        -- Check to see if the player is in a square around the stairs that will trigger the animation
+        -- ("room:GetGridIndex(player.Position) == gridEntity:GetGridIndex()" is too small of a square to trigger reliably)
+        local squareSize = 25 -- 20 is too small
+        if gridEntity.State == 1 and -- The trapdoor is open
+           run.crawlspaceEntering == false and
+           player.Position.X >= gridEntity.Position.X - squareSize and
+           player.Position.X <= gridEntity.Position.X + squareSize and
+           player.Position.Y >= gridEntity.Position.Y - squareSize and
+           player.Position.Y <= gridEntity.Position.Y + squareSize then
+
+          run.crawlspaceEntering = true
+          run.crawlspaceRoom = level:GetCurrentRoomIndex()
+          run.crawlspacePosition = gridEntity.Position
+          game:StartRoomTransition(LevelGridIndex.GRIDINDEX_CRAWLSPACE, Direction.DOWN, RoomTransition.TRANSITION_NONE)
+        end
+      end
+    end
+  end
+
+  if room:GetType() == RoomType.ROOM_DUNGEON and -- 16
+     room:GetGridIndex(player.Position) == 2 and -- If the player is standing on top of the ladder
+     run.crawlspaceExiting == false then
+
+    -- Make the player invisible to avoid a bug where they pop out of the wrong spot
+    local soulHearts = player:GetSoulHearts()
+    local blackHearts = player:GetBlackHearts()
+    for i = 1, 100 do
+      player:AddCollectible(CollectibleType.COLLECTIBLE_BINKY, 0, false) -- 438
+      player:RemoveCollectible(CollectibleType.COLLECTIBLE_BINKY)
+      Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_BINKY))
+    end
+    
+    -- Get rid of the soul hearts that we added
+    player:AddSoulHearts(-24)
+    for i = 1, soulHearts do
+      local bitPosition = math.floor((i - 1) / 2)
+      local bit = (blackHearts & (1 << bitPosition)) >> bitPosition
+      if bit == 0 then -- Soul heart
+        player:AddSoulHearts(1)
+      else -- Black heart
+        player:AddBlackHearts(1)
+      end
+    end
+
+    -- Do a manual room transition
+    run.crawlspaceExiting = true
+    level.LeaveDoor = -1 -- You have to set this before every teleport or else it will send you to the wrong room
+    game:StartRoomTransition(run.crawlspaceRoom, Direction.UP, RoomTransition.TRANSITION_NONE)
   end
 
   --
@@ -2245,7 +2303,7 @@ function RacingPlus:PostUpdate()
     for i = 1, num do
       local gridEntity = room:GetGridEntity(i)
       if gridEntity ~= nil then
-        -- If this entity is a trap door
+        -- If this entity is a button
         local test = gridEntity:ToPressurePlate()
         if test ~= nil then
           if gridEntity:GetSaveState().State ~= 3 then
@@ -2515,9 +2573,10 @@ function RacingPlus:BookOfSin()
   return true
 end
 
--- This callback is naturally used by Broken Remote
--- This callback is manually called for Cursed Eye
 function RacingPlus:Teleport()
+  -- This callback is naturally used by Broken Remote
+  -- This callback is manually called for Cursed Eye
+
   -- Local variables
   local game = Game()
   local level = game:GetLevel()
@@ -2536,6 +2595,22 @@ function RacingPlus:Teleport()
   Isaac.DebugString("Teleport! / Broken Remote / Cursed Eye to room: " .. tostring(gridIndex))
 
   -- This will override the existing Teleport! / Broken Remote effect because we have already locked in a room transition
+end
+
+function RacingPlus:BlankCard()
+  local game = Game()
+  local player = game:GetPlayer(0)
+  local card = player:GetCard(0)
+  if card == Card.CARD_FOOL or -- 1
+     card == Card.CARD_EMPEROR or -- 5
+     card == Card.CARD_HERMIT or -- 10
+     card == Card.CARD_STARS or -- 18
+     card == Card.CARD_MOON  then -- 19
+
+    -- We don't want to display the "use" animation, we just want to instantly teleport
+    -- Blank Card is hard coded to queue the "use" animation, so stop it on the next frame
+    run.usedTeleport = true
+  end
 end
 
 function RacingPlus:Undefined()
@@ -2678,7 +2753,7 @@ function RacingPlus:Telepills()
 
   -- We don't want to display the "use" animation, we just want to instantly teleport
   -- Pills are hard coded to queue the "use" animation, so stop it on the next frame
-  run.usedTelepills = true
+  run.usedTeleport = true
 end
 
 function debugFunction()
@@ -2724,8 +2799,27 @@ function debugFunction()
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
 
+  local soulHearts = player:GetSoulHearts()
+  local blackHearts = player:GetBlackHearts()
+  Isaac.DebugString("soulheart #: " .. tostring(soulHearts))
+  Isaac.DebugString("blackheart mask: " .. tostring(blackHearts))
+  Isaac.DebugString("blackheart binary: " .. tostring(bits(blackHearts)))
+  for i = 0, 11 do
+    local bit = (blackHearts & (1 << i)) >> i
+    Isaac.DebugString(tostring(i) .. " - " .. tostring(bit))
+  end
+
   -- Display the "use" animation
   return true
+end
+
+function bits(num)
+    local t={}
+    while num>0 do
+        rest=num%2
+        table.insert(t,1,rest)
+        num=(num-rest)/2
+    end return table.concat(t)
 end
 
 -- Define callbacks
@@ -2737,6 +2831,7 @@ RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,      RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,      RacingPlus.PostUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT) -- 44 (this callback is also used by Broken Remote)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BlankCard, CollectibleType.COLLECTIBLE_BLANK_CARD) -- 286
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER) -- Mega Blast (Placeholder) (custom item, 59)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Void, CollectibleType.COLLECTIBLE_VOID) -- 477

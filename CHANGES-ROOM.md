@@ -506,10 +506,11 @@ The changed rooms are as follows:
 
 ### Door Fixes
 
-On certain rooms, doors were poorly placed so that they overlap with entities or objects.
+On certain rooms, doors were poorly placed so that they overlap with entities or objects. And in some rooms, doors are disabled for no reason.
 
 The changed rooms are as follows:
 
+* Chest: #39 (double Mega Maw)
 * I AM ERROR: #1, #5, #9, #11, #17, #21, #23, #24, #27 (removed doors)
 * Boss: #1125 (Larry Jr.)
 

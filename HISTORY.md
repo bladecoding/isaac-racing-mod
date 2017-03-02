@@ -2,7 +2,14 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
-* *0.2.55* - Unreleased
+* *0.2.56* - Unreleased
+  * Made crawlspaces use normal room transition animations instead of the long fade.
+  * Removed the Blank Card animation after you use it with teleportation cards.
+  * Centered the Mega Maw in the single Mega Maw room on the Chest (#269).
+  * Added a door to the double Mega Maw room on the Chest (#39).
+  * Fixed the (vanilla) bug where the door opening sound effect would play in crawlspaces.
+  * Fixed the bug where the Mega Blast placeholder was showing up in item pools instead of The Book of Sin.
+* *0.2.55* - March 2nd
   * Greatly sped up the attack patterns of Wizoobs and Red Ghosts.
   * Removed invulernability frames from Lil' Haunts.
   * Cursed Eye is now seeded.

@@ -37,7 +37,7 @@
 		<!--Bob's Rotten Head-->
 		<Item Id="42" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Teleport!-->
-		<Item Id="59" Weight="1" DecreaseBy="1" RemoveOn="0.1"/><!-- 44 is unseeded -->
+		<Item Id="44" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Yum Heart-->
 		<Item Id="45" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Lucky Foot-->
@@ -109,7 +109,7 @@
 		<!--Little C.H.A.D.-->
 		<Item Id="96" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--The Book of Sin-->
-		<Item Id="43" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
+		<Item Id="43" Weight="1" DecreaseBy="1" RemoveOn="0.1"/><!-- 97 is unseeded -->
 		<!--The Relic-->
 		<Item Id="98" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Little Gish-->
@@ -425,7 +425,7 @@
 		<!--Isaac's Tears-->
 		<Item Id="323" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Undefined-->
-		<Item Id="61" Weight="1" DecreaseBy="1" RemoveOn="0.1"/><!-- 324 is unseeded -->
+		<Item Id="324" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Scissors-->
 		<Item Id="325" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--The Ludovico Technique-->
@@ -911,7 +911,7 @@
 		<!--We need to go deeper!-->
 		<Item Id="84" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--The Book of Sin-->
-		<Item Id="43" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
+		<Item Id="43" Weight="1" DecreaseBy="1" RemoveOn="0.1"/><!-- 97 is unseeded -->
 		<!--Demon Baby-->
 		<Item Id="113" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Moms Knife-->
@@ -1155,7 +1155,7 @@
 		<!--Book of Revelations-->
 		<Item Id="78" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/>
 		<!--The Book of Sin-->
-		<Item Id="43" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/>
+		<Item Id="43" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/><!-- 97 is unseeded -->
 		<!--Telepathy for Dummies-->
 		<Item Id="192" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/>
 		<!--How to Jump-->
@@ -1879,7 +1879,7 @@
 		<!--The Gamekid-->
 		<Item Id="93" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--The Book of Sin-->
-		<Item Id="97" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
+		<Item Id="43" Weight="1" DecreaseBy="1" RemoveOn="0.1"/><!-- 97 is unseeded -->
 		<!--Mom's Bottle of Pills-->
 		<Item Id="102" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--The Pinking Shears-->
@@ -2303,7 +2303,7 @@
 		<!--Demon Baby-->
 		<Item Id="113" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--The Book of Sin-->
-		<Item Id="97" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
+		<Item Id="43" Weight="1" DecreaseBy="1" RemoveOn="0.1"/><!-- 97 is unseeded -->
 		<!--The Nail-->
 		<Item Id="83" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Lord of the Pit-->
@@ -2419,7 +2419,7 @@
 		<!--Book of Revelations-->
 		<Item Id="78" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/>
 		<!--The Book of Sin-->
-		<Item Id="97" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/>
+		<Item Id="43" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/><!-- 97 is unseeded -->
 		<!--Monster Manual-->
 		<Item Id="123" Weight="1" DecreaseBy="0.1" RemoveOn="0.1"/>
 		<!--Telepathy for Dummies-->
