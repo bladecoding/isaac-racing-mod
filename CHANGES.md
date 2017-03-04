@@ -33,25 +33,11 @@ In terms of what to change about the game, the mod has several goals, and attemp
 
 Devil Rooms and Angel Rooms without item pedestals in them have been removed.
 
-### 3) Cutscene & Animation Removal
-
-Cutscenes are removed. (However, there is an option in the client to re-enable boss cutscenes for racers with cutscene skip muscle memory.)
-
-Additionally, some useless animations are removed:
-* cowering in the fetal position at the beginning of every floor
-* jumping in a hole to the next floor
-* going up the beam of light to the Cathedral
-* entering a chest when going to The Chest or beating the game (which also prevents [this bug](http://gfycat.com/ImmaculateHeartfeltBoutu)
-* teleporting upwards
-* the fade when entering or exiting crawlspaces
-* the use animation for Telepills
-* the use animation for Blank Card when you have a teleport card
-
-### 4) Wrath of the Lamb style room clear
+### 3) Wrath of the Lamb Style Room Clear
 
 Room clear was incorrectly ported from Wrath of Lamb to Rebirth; doors are intended to open at the beginning of an enemy's death animation, not at the end. The Racing+ mod fixes this to be the way it was originally intended.
 
-### 5) Room Fixes
+### 4) Room Fixes
 
 Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
@@ -59,20 +45,29 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 
 ## Other Minor Bug Fixes & Quality of Life Changes
 
-* Void Portals will automatically be deleted.
 * Some items with no effect at all are removed:
   * the Karma trinket (all Donation Machines are removed on the BLCK CNDL seed)
   * the Amnesia pill (all curses are removed on the BLCK CNDL seed)
   * the ??? pill (all curses are removed on the BLCK CNDL seed)
+* Cutscenes are removed. (However, there is an option in the client to re-enable boss cutscenes for racers with cutscene skip muscle memory.)
+* Some useless animations are removed:
+  * cowering in the fetal position at the beginning of every floor
+  * jumping in a hole to the next floor
+  * going up the beam of light to the Cathedral
+  * entering a chest when going to The Chest or beating the game (which also prevents [this bug](http://gfycat.com/ImmaculateHeartfeltBoutu)
+  * teleporting upwards
+  * the fade when entering or exiting crawlspaces
+  * the use animation for Telepills
+  * the use animation for Blank Card when you have a teleport card
+* Void Portals will automatically be deleted.
 * The "drop" button will now immediately drop cards and trinkets. (This won't happen if you have the School Bag, Starter Deck, Little Baggy, Deep Pockets, or Polydactyly.)
 * Troll Bombs and Mega Troll Bombs now always have a fuse timer of exactly 2 seconds.
 * Globins will permanently die upon the 5th regeneration to prevent Epic Fetus softlocks.
 * Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, Red Ghosts, and Lil' Haunts no longer have invulernability frames after spawning.
 * Wizoobs and Red Ghosts will now have faster attack patterns.
-* All item rerolls are now seeded per room, even if you purchase or touch the item. (This doesn't apply to shops.)
+* All item rerolls are now seeded per room, even if you purchase or touch the item. (This doesn't apply to items that you purchase with coins.)
 * Teleport!, Undefined, Cursed Eye, Lil Chest, Broken Remote, and Telepills are now seeded.
-* The Book of Sin will now generate actual random pickups.
-* Mystery Sack will now generate actual random pickups.
+* The Book of Sin and Mystery Sack will now generate actual random pickups.
 * Greed's Gullet will now properly work on Keeper.
 * Fixed the spelling of Humbling Bundle.
 * Spawning a co-op baby will automatically kill the baby, return the heart to you, and delete all item pedestals in the room. (This is to prevent various co-op baby-related exploits.)

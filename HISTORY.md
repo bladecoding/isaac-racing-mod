@@ -2,6 +2,9 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
+* *0.2.58* - Unreleased
+  * Fixed some various bugs with the new crawlspace stuff.
+  * Non-purchasable item pedestals in shops are now seeded.
 * *0.2.57* - March 2nd
   * Made crawlspaces use normal room transition animations instead of the long fade.
   * Removed the Blank Card animation after you use it with teleportation cards.
