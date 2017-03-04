@@ -7,7 +7,7 @@
 
 TODO:
 - put ready below top graphic
-- Add trophy for finish, add fireworks for first place: https://www.reddit.com/r/bindingofisaac/comments/5r4vmb/spawn_1000104/
+- Add trophy for finish
 - forget me now after killing end boss
 
 - Get Hyphen to fix item tracker for Book of Sin + Mega Blast placeholder
@@ -98,6 +98,7 @@ local raceVars = { -- Things that pertain to the race but are not read from the 
   updateCache        = 0, -- 0 is not update, 1 is set to update after the next run begins, 2 is after the next run has begun
   replacedScolex     = false,
   placedKeys         = false,
+  raceClear          = false,
 }
 local RNGCounter = {
   InitialSeed,
@@ -391,6 +392,7 @@ function RacingPlus:RunInit()
   raceVars.trinketBanList = {}
   raceVars.replacedScolex = false
   raceVars.placedKeys = false
+  raceVars.raceClear = false
 
   -- Reset some RNG counters to the floor RNG of B1 for this seed
   -- (future drops will be based on the RNG from this initial random value)
@@ -2459,7 +2461,38 @@ function RacingPlus:PostUpdate()
       end
     end
   end
+
+  --
+  -- Fireworks. Instead of real functions, we just add triple comments now.
+  --
+
+  -- If you have fought the last boss and they are dead, and the room is clear, then you win!
+  if (game:HasEncounteredBoss(EntityType.ENTITY_ISAAC, 1) or 
+     game:HasEncounteredBoss(EntityType.ENTITY_MEGA_SATAN_2, 0) or 
+     game:HasEncounteredBoss(EntityType.ENTITY_THE_LAMB, 0)) and
+     room:IsClear() then
+
+    raceVars.raceClear = true
+  end
+
+  -- Winners get sparklies and fireworks
+  if raceVars.raceClear == true then
+    -- Give Isaac sparkly feet
+    if player:IsFrame(1,0) then
+      local e = Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.ULTRA_GREED_BLING, 0, player.Position + RandomVector():__mul(10), Vector(0, 0), nil)
+    end
+
+    -- Spawn fireworks every second
+    if player:IsFrame(10,0) then
+      local e = Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.FIREWORKS, 0, gridToPos(math.random(0, 12), math.random(0, 8)), Vector(0, 0), nil)
+      local eff = e:ToEffect()
+      eff:SetTimeout(20)
+    end
+  end
+
 end
+
+
 
 function RacingPlus:BookOfSin()
   -- Local variables
