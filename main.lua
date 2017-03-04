@@ -99,6 +99,7 @@ local raceVars = { -- Things that pertain to the race but are not read from the 
   replacedScolex     = false,
   placedKeys         = false,
   raceClear          = false,
+  fireworks          = 0,
 }
 local RNGCounter = {
   InitialSeed,
@@ -393,6 +394,7 @@ function RacingPlus:RunInit()
   raceVars.replacedScolex = false
   raceVars.placedKeys = false
   raceVars.raceClear = false
+  raceVars.fireworks = 0
 
   -- Reset some RNG counters to the floor RNG of B1 for this seed
   -- (future drops will be based on the RNG from this initial random value)
@@ -1589,7 +1591,8 @@ function RacingPlus:PlayerInit(player)
   end
 end
 
--- Check various things once per frame (this will fire while the floor/room is loading)
+-- Check various things once per draw frame (60 times a second)
+-- (this will fire while the floor/room is loading)
 function RacingPlus:PostRender()
   -- Local variables
   local game = Game()
@@ -1616,6 +1619,7 @@ function RacingPlus:PostRender()
 
     -- The server will write data for us to the "save.dat" file in the mod subdirectory
     -- From: https://www.reddit.com/r/themoddingofisaac/comments/5q3ml0/tutorial_saving_different_moddata_for_each_run/
+    raceVars.loadNextFrame = false
     if race ~= nil then
       oldRace = race
     end
@@ -2136,7 +2140,8 @@ function RacingPlus:PostRender()
   end
 end
 
--- Check various things once per frame (this will not fire while the floor/room is loading)
+-- Check various things once per game frame (30 times a second)
+-- (this will not fire while the floor/room is loading)
 function RacingPlus:PostUpdate()
   -- Local variables
   local game = Game()
@@ -2148,6 +2153,7 @@ function RacingPlus:PostUpdate()
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
   local isaacFrameCount = Isaac:GetFrameCount()
+  local sfx = SFXManager()
 
   --
   -- Keep track of the total amount of rooms cleared on this run thus far
@@ -2236,6 +2242,40 @@ function RacingPlus:PostUpdate()
     end
     if allPushed then
       RacingPlus:FastClearCheckAlive()
+    end
+  end
+
+  --
+  -- Fireworks
+  --
+
+  -- If you have fought the last boss and they are dead, and the room is clear, then you win!
+  --[[
+  if (game:HasEncounteredBoss(EntityType.ENTITY_ISAAC, 1) or 
+     game:HasEncounteredBoss(EntityType.ENTITY_MEGA_SATAN_2, 0) or 
+     game:HasEncounteredBoss(EntityType.ENTITY_THE_LAMB, 0)) and
+     room:IsClear() then
+
+    raceVars.raceClear = true
+  end
+  --]]
+
+  -- Winners get sparklies and fireworks
+  if raceVars.raceClear == true then
+    -- Give Isaac sparkly feet
+    Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.ULTRA_GREED_BLING, 0, player.Position + RandomVector():__mul(10), Vector(0, 0), nil)
+
+    -- Spawn 30 fireworks
+    if raceVars.fireworks < 120 and gameFrameCount % 5 == 0 then
+      raceVars.fireworks = raceVars.fireworks + 1
+      local firework = Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.FIREWORKS, 0, gridToPos(math.random(0, 12), math.random(0, 8)), Vector(0, 0), nil)
+      local fireworkEffect = firework:ToEffect()
+      fireworkEffect:SetTimeout(20)
+    end
+
+    -- Make Fireworks quieter
+    if sfx:IsPlaying(SoundEffect.SOUND_BOSS1_EXPLOSIONS) then
+      sfx:AdjustVolume(SoundEffect.SOUND_BOSS1_EXPLOSIONS, 0.2)
     end
   end
 
@@ -2461,38 +2501,7 @@ function RacingPlus:PostUpdate()
       end
     end
   end
-
-  --
-  -- Fireworks. Instead of real functions, we just add triple comments now.
-  --
-
-  -- If you have fought the last boss and they are dead, and the room is clear, then you win!
-  if (game:HasEncounteredBoss(EntityType.ENTITY_ISAAC, 1) or 
-     game:HasEncounteredBoss(EntityType.ENTITY_MEGA_SATAN_2, 0) or 
-     game:HasEncounteredBoss(EntityType.ENTITY_THE_LAMB, 0)) and
-     room:IsClear() then
-
-    raceVars.raceClear = true
-  end
-
-  -- Winners get sparklies and fireworks
-  if raceVars.raceClear == true then
-    -- Give Isaac sparkly feet
-    if player:IsFrame(1,0) then
-      local e = Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.ULTRA_GREED_BLING, 0, player.Position + RandomVector():__mul(10), Vector(0, 0), nil)
-    end
-
-    -- Spawn fireworks every second
-    if player:IsFrame(10,0) then
-      local e = Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.FIREWORKS, 0, gridToPos(math.random(0, 12), math.random(0, 8)), Vector(0, 0), nil)
-      local eff = e:ToEffect()
-      eff:SetTimeout(20)
-    end
-  end
-
 end
-
-
 
 function RacingPlus:BookOfSin()
   -- Local variables
@@ -2772,6 +2781,9 @@ function debugFunction()
   Isaac.DebugString("----------------------")
   Isaac.DebugString("Exiting test callback.")
   Isaac.DebugString("----------------------")
+
+  -- Test stuff
+  raceVars.raceClear = true
 
   -- Display the "use" animation
   return true
