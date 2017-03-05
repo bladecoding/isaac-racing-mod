@@ -59,6 +59,7 @@ local run = {
   teleporting           = false,
   usedTeleport          = false,
   touchedBookOfSin      = false,
+  maggySouls            = 0,
   edensSoulSet          = false,
   edensSoulCharges      = 0,
   keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
@@ -379,6 +380,7 @@ function RacingPlus:RunInit()
   run.teleporting = false
   run.usedTeleport = false
   run.touchedBookOfSin = false
+  run.maggySouls = 0
   run.edensSoulSet = false
   run.edensSoulCharges = 0
   run.keeperBaseHearts = 4
@@ -580,6 +582,16 @@ function RacingPlus:RunInitForRace()
   local game = Game()
   local player = game:GetPlayer(0)
   local inBanList
+
+  -- Do Pageant Boy related initiailization
+  if race.rFormat == "pageant" then
+    run.schoolBagItem = CollectibleType.COLLECTIBLE_D6 -- 105
+    run.schoolBagCharges = 6
+    player:AddCollectible(CollectibleType.COLLECTIBLE_MAXS_HEAD, 0, false) -- 4
+    player:AddCollectible(CollectibleType.COLLECTIBLE_THERES_OPTIONS, 0, false) -- 246
+    player:AddCollectible(CollectibleType.COLLECTIBLE_MORE_OPTIONS, 0, false) -- 414
+    player:AddCollectible(CollectibleType.COLLECTIBLE_BELLY_BUTTON, 0, false) -- 458
+  end
 
   -- Do School Bag related initiailization
   if race.schoolBag == true then
@@ -1973,6 +1985,12 @@ function RacingPlus:PostRender()
        entities[i].Variant == PickupVariant.PICKUP_TRINKET and -- 350
        entities[i].InitSeed ~= roomSeed then
 
+      -- Delete Pageant Boy starting trinkets
+      if run.roomsEntered == 1 then
+        entities[i]:Remove()
+        break
+      end
+
       -- Check to see if we already replaced it with a seeded trinket
       -- (this is necessary because it will be replaced while the room is loading but not take effect until a game frame ticks)
       -- (it also takes 1 frame for an existing trinket to get deleted)
@@ -2162,6 +2180,10 @@ function RacingPlus:PostUpdate()
   local player = game:GetPlayer(0)
   local activeItem = player:GetActiveItem()
   local activeCharge = player:GetActiveCharge()
+  local hearts = player:GetHearts()
+  local maxHearts = player:GetMaxHearts()
+  local soulHearts = player:GetSoulHearts()
+  local coins = player:GetNumCoins()
   local isaacFrameCount = Isaac:GetFrameCount()
   local sfx = SFXManager()
 
@@ -2207,9 +2229,6 @@ function RacingPlus:PostUpdate()
   --
 
   if raceVars.character == "Keeper" then
-    local maxHearts = player:GetMaxHearts()
-    local hearts = player:GetHearts()
-    local coins = player:GetNumCoins()
     local coinContainers = 0
 
     -- Find out how many coin containers we should have
@@ -2339,6 +2358,23 @@ function RacingPlus:PostUpdate()
   else
     run.edensSoulSet = false
   end
+
+  --
+  -- Check Magdalene health
+  --
+
+  --[[
+  if raceVars.character == "Magdalene" and soulHearts > 0 then
+    run.maggySouls = run.maggySouls + soulHearts
+    player:AddSoulHearts(-1 * soulHearts)
+    Isaac.DebugString("Maggy's soul heart collection is now at: " .. tostring(run.maggySouls))
+    if run.maggySouls >= 12 then
+      run.maggySouls = run.maggySouls - 12
+      player:AddMaxHearts(2)
+      Isaac.DebugString("Added a heart container to Magdalene.")
+    end
+  end
+  --]]
 
   -- Check all the (non-grid) entities in the room
   local entities = Isaac.GetRoomEntities()
