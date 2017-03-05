@@ -55,18 +55,20 @@ local run = {
   currentLilHaunts      = {},
   replacedItems         = {},
   replacedTrinkets      = {},
-  keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
-  keeperHealthItems     = {},
-  keeperUsedStrength    = false,
   itemReplacementDelay  = 0,
   teleporting           = false,
   usedTeleport          = false,
+  touchedBookOfSin      = false,
+  edensSoulSet          = false,
+  edensSoulCharges      = 0,
+  keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
+  keeperHealthItems     = {},
+  keeperUsedStrength    = false,
   crawlspaceEntering    = false,
   crawlspaceExiting     = false,
   crawlspaceRoom        = 0,
   crawlspacePosition    = 0,
   crawlspaceScale       = 1,
-  touchedBookOfSin      = false,
   schoolBagItem         = 0,
   schoolBagMaxCharges   = 0,
   schoolBagCharges      = 0,
@@ -104,6 +106,7 @@ local raceVars = { -- Things that pertain to the race but are not read from the 
 local RNGCounter = {
   InitialSeed,
   BookOfSin,
+  CrystalBall,
   Teleport, -- Broken Remote also uses this
   Undefined,
   Telepills,
@@ -121,7 +124,8 @@ local spriteTableSchoolBag = {}
 
 -- Collectibles
 CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43
-CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER = 59
+CollectibleType.COLLECTIBLE_CRYSTAL_BALL_SEEDED = 59
+CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER = 61
 CollectibleType.COLLECTIBLE_OFF_LIMITS = 235
 CollectibleType.COLLECTIBLE_DEBUG = 263
 
@@ -371,18 +375,20 @@ function RacingPlus:RunInit()
   run.currentLilHaunts = {}
   run.replacedItems = {}
   run.replacedTrinkets = {}
-  run.keeperBaseHearts = 4
-  run.keeperHealthItems = {}
-  run.keeperUsedStrength = false
   run.itemReplacementDelay = 0
   run.teleporting = false
   run.usedTeleport = false
+  run.touchedBookOfSin = false
+  run.edensSoulSet = false
+  run.edensSoulCharges = 0
+  run.keeperBaseHearts = 4
+  run.keeperHealthItems = {}
+  run.keeperUsedStrength = false
   run.crawlspaceEntering = false
   run.crawlspaceExiting = false
   run.crawlspaceRoom = 0
   run.crawlspacePosition = 0
   run.crawlspaceScale = 1
-  run.touchedBookOfSin = false
   run.schoolBagItem = 0
   run.schoolBagMaxCharges = 0
   run.schoolBagCharges = 0
@@ -400,6 +406,7 @@ function RacingPlus:RunInit()
   -- (future drops will be based on the RNG from this initial random value)
   RNGCounter.InitialSeed = seed
   RNGCounter.BookOfSin = seed
+  RNGCounter.CrystalBall = seed
   RNGCounter.SackOfPennies = seed
   RNGCounter.BombBag = seed
   RNGCounter.JuicySack = seed
@@ -625,7 +632,7 @@ function RacingPlus:RunInitForRace()
     if race.startingItems[i] == 441 and raceVars.hourglassUsed == false then
       -- Mega Blast bugs out if Glowing Hour Glass is used while the blast is occuring
       -- So, give them a placeholder Mega Blast if this is before the race has started
-      player:AddCollectible(CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER, 12, false)
+      player:AddCollectible(CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER, 12, false) -- 61
     else
       -- Give the item; the second argument is charge amount, and the third argument is "AddConsumables"
       player:AddCollectible(race.startingItems[i], 12, true)
@@ -709,7 +716,7 @@ end
 function RacingPlus:GetActiveCollectibleCharges(itemID)
   local charges = 0
   if itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH or -- 441
-     itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER or -- 59
+     itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER or -- 61
      itemID == CollectibleType.COLLECTIBLE_EDENS_SOUL or -- 490
      itemID == CollectibleType.COLLECTIBLE_DELIRIOUS then -- 510
 
@@ -728,6 +735,7 @@ function RacingPlus:GetActiveCollectibleCharges(itemID)
          itemID == CollectibleType.COLLECTIBLE_PINKING_SHEARS or -- 107
          itemID == CollectibleType.COLLECTIBLE_PRAYER_CARD or -- 146
          itemID == CollectibleType.COLLECTIBLE_CRYSTAL_BALL or -- 158
+         itemID == CollectibleType.COLLECTIBLE_CRYSTAL_BALL_SEEDED or -- 59
          itemID == CollectibleType.COLLECTIBLE_D20 or -- 166
          itemID == CollectibleType.COLLECTIBLE_WHITE_PONY or -- 181
          itemID == CollectibleType.COLLECTIBLE_D100 or -- 283
@@ -2152,6 +2160,8 @@ function RacingPlus:PostUpdate()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
+  local activeItem = player:GetActiveItem()
+  local activeCharge = player:GetActiveCharge()
   local isaacFrameCount = Isaac:GetFrameCount()
   local sfx = SFXManager()
 
@@ -2181,6 +2191,12 @@ function RacingPlus:PostUpdate()
         run.schoolBagCharges = run.schoolBagCharges + chargesToAdd
         if run.schoolBagCharges > run.schoolBagMaxCharges then
           run.schoolBagCharges = run.schoolBagMaxCharges
+        end
+
+        -- Also keep track of Eden's Soul
+        run.edensSoulCharges = run.edensSoulCharges + chargesToAdd
+        if run.edensSoulCharges > 12 then
+          run.edensSoulCharges = 12
         end
       end
     end
@@ -2274,7 +2290,7 @@ function RacingPlus:PostUpdate()
     end
 
     -- Make Fireworks quieter
-    if sfx:IsPlaying(SoundEffect.SOUND_BOSS1_EXPLOSIONS) then
+    if sfx:IsPlaying(SoundEffect.SOUND_BOSS1_EXPLOSIONS) then -- 182
       sfx:AdjustVolume(SoundEffect.SOUND_BOSS1_EXPLOSIONS, 0.2)
     end
   end
@@ -2308,6 +2324,21 @@ function RacingPlus:PostUpdate()
     Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_BOOK_OF_SIN))
     player:AddCollectible(CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED, 4, false)
   end
+  
+  --
+  -- Check for Eden's Soul (to fix the charge bug)
+  --
+
+  if activeItem == CollectibleType.COLLECTIBLE_EDENS_SOUL then -- 490
+    if run.edensSoulSet then
+      run.edensSoulCharges = activeCharge
+    else
+      run.edensSoulSet = true
+      player:SetActiveCharge(run.edensSoulCharges)
+    end
+  else
+    run.edensSoulSet = false
+  end
 
   -- Check all the (non-grid) entities in the room
   local entities = Isaac.GetRoomEntities()
@@ -2317,10 +2348,10 @@ function RacingPlus:PostUpdate()
     -- (in vanilla the fuse is: 45 + random(1, 2147483647) % 30)
     --
 
-    if entities[i].FrameCount == 1 and
-       entities[i].Type == EntityType.ENTITY_BOMBDROP and
+    if entities[i].Type == EntityType.ENTITY_BOMBDROP and
        (entities[i].Variant == 3 or -- Troll Bomb
-        entities[i].Variant == 4) then -- Mega Troll Bomb
+        entities[i].Variant == 4) and -- Mega Troll Bomb
+       entities[i].FrameCount == 1 then
 
       local bomb = entities[i]:ToBomb()
       bomb:SetExplosionCountdown(59) -- 60 minus 1 because we start at frame 1
@@ -2329,6 +2360,8 @@ function RacingPlus:PostUpdate()
 
     --
     -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, Red Ghosts, and Lil' Haunts
+    -- Speed up Wizoobs, Red Ghosts, and Cod Worms
+    -- Replace Scolex on seeded races
     --
 
     local npc = entities[i]:ToNPC()
@@ -2367,6 +2400,49 @@ function RacingPlus:PostUpdate()
           npc.StateFrame = 0
         end
 
+      elseif npc.Type == EntityType.ENTITY_PIN and npc.Variant == 1 and -- 62, Scolex
+             raceVars.replacedScolex == false and
+             race ~= nil and -- We have to check for this since we are in the PostUpdate callback
+             race.rFormat == "seeded" then
+
+        -- There are 10 Scolex entities, so we need to delete all of them
+        raceVars.replacedScolex = true
+        for j = 1, #entities do
+          local npc2 = entities[j]:ToNPC()
+          if npc2 ~= nil then
+            if npc2.Type == EntityType.ENTITY_PIN and npc2.Variant == 1 then
+              npc2:Remove()
+            end
+          end
+        end
+
+        -- Spawn two Frails (62.2)
+        for i = 1, 2 do
+          local frail = game:Spawn(EntityType.ENTITY_PIN, 2, room:GetCenterPos(), Vector(0,0), nil, 0, 0)
+          frail.Visible = false -- It will show the head on the first frame after spawning unless we do this
+          -- The game will automatically make the entity visible later on
+        end
+
+      elseif npc.Type == EntityType.ENTITY_MOMS_HAND or-- 213
+             npc.Type == EntityType.ENTITY_MOMS_DEAD_HAND then -- 287
+
+        if npc.State == 4 and npc.StateFrame < 30 then
+          -- Check to see if it is the only one in the room
+          -- (if there is more than one, we need to keep the random delay so that they don't fall predictably)
+          local handCount = 0
+          for j = 1, #entities do
+            local npc2 = entities[j]:ToNPC()
+            if npc2 ~= nil then
+              if npc2.Type == EntityType.ENTITY_MOMS_HAND or npc.Type == EntityType.ENTITY_MOMS_DEAD_HAND then
+                handCount = handCount + 1
+              end
+            end
+          end
+          if handCount == 1 then -- Speed it up
+            npc.StateFrame = 30
+          end
+        end
+
       elseif npc.Type == EntityType.ENTITY_WIZOOB or -- 219
              npc.Type == EntityType.ENTITY_RED_GHOST then -- 285
 
@@ -2392,6 +2468,7 @@ function RacingPlus:PostUpdate()
             if npc2 ~= nil then
               if npc2.Type == EntityType.ENTITY_THE_HAUNT and npc2.Variant == 0 then -- 260
                 dontTouch = true
+                break
               end
             end
           end
@@ -2411,27 +2488,10 @@ function RacingPlus:PostUpdate()
           npc.Visible = true -- If we don't do this, they will be invisible after being spawned by a Haunt
         end
 
-      elseif npc.Type == EntityType.ENTITY_PIN and npc.Variant == 1 and -- 62, Scolex
-             raceVars.replacedScolex == false then
-             --race ~= nil and -- We have to check for this since we are in the PostUpdate callback
-             --race.rFormat == "seeded" then
-
-        -- There are 10 Scolex entities, so we need to delete all of them
-        raceVars.replacedScolex = true
-        for j = 1, #entities do
-          local npc2 = entities[j]:ToNPC()
-          if npc2 ~= nil then
-            if npc2.Type == EntityType.ENTITY_PIN and npc2.Variant == 1 then
-              npc2:Remove()
-            end
-          end
-        end
-
-        -- Spawn two Frails (62.2)
-        for i = 1, 2 do
-          local frail = game:Spawn(EntityType.ENTITY_PIN, 2, room:GetCenterPos(), Vector(0,0), nil, 0, 0)
-          frail.Visible = false -- It will show the head on the first frame after spawning unless we do this
-          -- The game will automatically make the entity visible later on
+      elseif npc.Type == EntityType.ENTITY_PORTAL then -- 306
+        --Isaac.DebugString(tostring(npc.State) .. "," .. tostring(npc.StateFrame) .. "," .. tostring(npc.I1) .. "," .. tostring(npc.I2))
+        if npc.I2 ~= 5 then -- Portals can spawn 1-5 enemies, and this is stored in I2
+          npc.I2 = 5 -- Make all portals spawn 5 enemies since this is unseeded
         end
       end
     end
@@ -2488,12 +2548,17 @@ function RacingPlus:PostUpdate()
         run.schoolBagFrame = isaacFrameCount + 20 -- 1/3 of a second
 
         -- Switch the items
-        local activeItem = player:GetActiveItem()
-        local activeCharge = player:GetActiveCharge()
         if run.schoolBagItem == 0 then
           player:RemoveCollectible(activeItem)
         else
           player:AddCollectible(run.schoolBagItem, run.schoolBagCharges, false)
+
+          -- Fix the bug where the charge sound will play if the item is fully charged
+          if player:GetActiveCharge() == RacingPlus:GetActiveCollectibleCharges(run.schoolBagItem) and
+             sfx:IsPlaying(SoundEffect.SOUND_BATTERYCHARGE) then -- 170
+
+            sfx:AdjustVolume(SoundEffect.SOUND_BATTERYCHARGE, 0)
+          end
         end
         run.schoolBagItem = activeItem
         run.schoolBagCharges = activeCharge
@@ -2579,6 +2644,45 @@ function RacingPlus:Teleport()
   Isaac.DebugString("Teleport! / Broken Remote / Cursed Eye to room: " .. tostring(gridIndex))
 
   -- This will override the existing Teleport! / Broken Remote effect because we have already locked in a room transition
+end
+
+function RacingPlus:CrystalBall()
+  -- Local variables
+  local game = Game()
+  local level = game:GetLevel()
+  local player = game:GetPlayer(0)
+
+  -- Show the map
+  level:ShowMap() -- This is the same as the World/Sun card effect
+
+  -- Decide whether we are dropping a soul heart or a card
+  RNGCounter.CrystalBall = incrementRNG(RNGCounter.CrystalBall)
+  math.randomseed(RNGCounter.CrystalBall)
+  local cardChance = math.random(1, 10)
+  local spawnCard = false
+  if player:HasTrinket(TrinketType.TRINKET_DAEMONS_TAIL) then -- 22
+    if cardChance <= 9 then -- 90% chance with Daemon's Tail
+      spawnCard = true
+    end
+  else
+    if cardChance <= 5 then -- 50% chance normally
+      spawnCard = true
+    end
+  end
+
+  local pos = player.Position
+  local vel = Vector(0, 0)
+  if spawnCard then
+    -- Random Card - 5.300.0
+    RNGCounter.CrystalBall = incrementRNG(RNGCounter.CrystalBall)
+    game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_TAROTCARD, pos, vel, player, 0, RNGCounter.CrystalBall)
+  else
+    -- Heart (soul) - 5.10.3
+    game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_HEART, pos, vel, player, 3, 0)
+  end
+
+  -- By returning true, it will play the animation where Isaac holds the Book of Sin over his head
+  return true
 end
 
 function RacingPlus:BlankCard()
@@ -2739,7 +2843,7 @@ function RacingPlus:Telepills()
   run.usedTeleport = true
 end
 
-function debugFunction()
+function RacingPlus:Debug()
   local game = Game()
   local level = game:GetLevel()
   local stage = level:GetStage()
@@ -2798,11 +2902,11 @@ RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,      RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,      RacingPlus.PostUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT) -- 44 (this callback is also used by Broken Remote)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.CrystalBall, CollectibleType.COLLECTIBLE_CRYSTAL_BALL_SEEDED) -- Replacing Crystal Ball (158) with 59
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER) -- Mega Blast (Placeholder) (custom item, 61)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BlankCard, CollectibleType.COLLECTIBLE_BLANK_CARD) -- 286
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER) -- Mega Blast (Placeholder) (custom item, 59)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Void, CollectibleType.COLLECTIBLE_VOID) -- 477
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         debugFunction, CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 263)
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_FOOL) -- 1
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_EMPEROR) -- 5
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_HERMIT) -- 10
@@ -2810,5 +2914,6 @@ RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.StrengthCard
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_STARS) -- 18
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_MOON) -- 19
 RacingPlus:AddCallback(ModCallbacks.MC_USE_PILL,         RacingPlus.Telepills, PillEffect.PILLEFFECT_TELEPILLS) -- 19
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Debug, CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 263)
 
 -- Missing item IDs: 43, 59, 61, 235, 263

@@ -157,7 +157,8 @@
 	<familiar description="Plop!" gfx="Collectibles_155_ThePeeper.png" id="155" name="The Peeper" />
 	<passive description="Item martyr" gfx="Collectibles_156_Habit.png" id="156" name="Habit" />
 	<passive achievement="54" cache="damage" description="RAGE!" gfx="Collectibles_157_BloodyLust.png" id="157" name="Bloody Lust" />
-	<active description="I see my future" gfx="Collectibles_158_CrystalBall.png" id="158" maxcharges="6" name="Crystal Ball" />
+	<active description="I see my future" gfx="Collectibles_158_CrystalBall.png" id="158" maxcharges="6" name="Crystal Ball (Unseeded)" />
+	<active description="I see my future" gfx="Collectibles_158_CrystalBall.png" id="59" maxcharges="6" name="Crystal Ball" />
 	<passive cache="flying tearflag tearcolor" description="Scary" devilprice="2" gfx="Collectibles_159_SpiritOfTheNight.png" id="159" name="Spirit of the Night" />
 	<active cooldown="30" description="Holy white death" gfx="Collectibles_160_CrackTheSky.png" id="160" maxcharges="4" name="Crack the Sky" />
 	<passive description="Eternal life?" gfx="Collectibles_161_Ankh.png" id="161" name="Ankh" />
@@ -445,7 +446,7 @@
 	<active description="What's inside?" gfx="Collectibles_439_MomsBox.png" id="439" name="Mom's Box" maxcharges="4" cache="all" />
 	<passive achievement="232" description="Matt's Kidney Stone" gfx="Collectibles_440_KidneyStone.png" id="440" name="Kidney Stone" cache="range speed firedelay" />
 	<active achievement="276" description="Laser Breath" gfx="collectibles_441_megasatansbreath.png" id="441" name="Mega Blast" maxcharges="12" />
-	<active description="A placeholder for the beginning of the race" gfx="collectibles_441_megasatansbreath.png" id="59" name="Mega Blast (Placeholder)" maxcharges="12" />
+	<active description="A placeholder for the beginning of the race" gfx="collectibles_441_megasatansbreath.png" id="61" name="Mega Blast (Placeholder)" maxcharges="12" />
 	
 	<!-- Afterbirth+ -->
 	<passive achievement="290" description="Loss is power" gfx="Collectibles_442_DarkPrincesCrown.png" id="442" name="Dark Princes Crown" cache="range firedelay shotspeed" devilprice="2" />

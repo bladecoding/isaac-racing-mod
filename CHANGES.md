@@ -65,13 +65,16 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 * Globins will permanently die upon the 5th regeneration to prevent Epic Fetus softlocks.
 * Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, Red Ghosts, and Lil' Haunts no longer have invulernability frames after spawning.
 * Wizoobs and Red Ghosts will now have faster attack patterns.
+* Mom's Hand and Mom's Dead hand will now immediately attack you if there is only one of them in the room.
 * All item rerolls are now seeded per room, even if you purchase or touch the item. (This doesn't apply to items that you purchase with coins.)
-* Teleport!, Undefined, Cursed Eye, Lil Chest, Broken Remote, and Telepills are now seeded.
+* Teleport!, Undefined, Cursed Eye, Lil Chest, Crystal Ball, Broken Remote, and Telepills are now seeded.
+* Portals are now seeded. (As a side effect of this, Portals will always spawn 5 enemies now instead of 1-5 enemies.)
 * The Book of Sin and Mystery Sack will now generate actual random pickups.
 * Greed's Gullet will now properly work on Keeper.
 * Fixed the spelling of Humbling Bundle.
 * Spawning a co-op baby will automatically kill the baby, return the heart to you, and delete all item pedestals in the room. (This is to prevent various co-op baby-related exploits.)
 * Teleporting to the Dark Room via a Sacrifice Room will send you to the next floor instead. (This is to prevent exploiting races to The Lamb or Mega Satan.)
+* Eden's Soul will now always properly start at 0 charges.
 * The door opening sound will no longer play in crawlspaces.
 * The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
 * The trapdoor or the beam of light on Womb 2 will be automatically removed depending on your run goal. By default, it will remove the trapdoor.

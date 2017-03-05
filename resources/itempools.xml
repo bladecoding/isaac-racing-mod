@@ -205,7 +205,7 @@
 		<!--Blood Lust-->
 		<Item Id="157" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Crystal Ball-->
-		<Item Id="158" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
+		<Item Id="59" Weight="1" DecreaseBy="1" RemoveOn="0.1"/><!-- 158 is unseeded -->
 		<!--Crack the Sky-->
 		<Item Id="160" Weight="1" DecreaseBy="1" RemoveOn="0.1"/>
 		<!--Ank-->

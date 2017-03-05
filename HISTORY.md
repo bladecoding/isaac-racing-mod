@@ -2,7 +2,14 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
-* *0.2.58* - Unreleased
+* *0.2.59* - March 4th
+  * Fixed the bug with the School Bag where the charge sound would play every time you swapped in a fully charged item.
+  * Fixed the (vanilla) bug with Eden's Soul where it would not start off at 0 charges.
+  * Crystal Ball is now seeded.
+  * Portals are now seeded. (As a side effect of this, Portals will always spawn 5 enemies now instead of 1-5 enemies.)
+  * Mom's Hand and Mom's Dead hand will now immediately attack you if there is only one of them in the room.
+  * Removed Mom's Hand from Devil Room #13.
+* *0.2.58* - March 4th
   * Fixed some various bugs with the new crawlspace stuff.
   * Non-purchasable item pedestals in shops are now seeded.
 * *0.2.57* - March 2nd

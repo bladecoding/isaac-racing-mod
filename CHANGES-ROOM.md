@@ -11,6 +11,7 @@ Firstly, some rooms were purely changed for balance (racing) reasons. Rooms with
 * No-item Devil Rooms have been changed to have 1 item.
 * Devil Rooms without 4 exits have been changed to have 4 exits.
 * Devil Rooms without weight of 1.0 have been changed to have weight 1.0.
+* Mom's Hand is removed from Devil Room #13.
 
 The changed rooms are as follows:
 * #16 (3 Devil Beggar)
