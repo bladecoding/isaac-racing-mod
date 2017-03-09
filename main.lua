@@ -3000,7 +3000,7 @@ function RacingPlus:Teleport()
   RNGCounter.Teleport = incrementRNG(RNGCounter.Teleport)
   math.randomseed(RNGCounter.Teleport)
   local roomIndex = math.random(0, rooms.Size - 1)
-  local gridIndex = rooms:Get(roomIndex).GridIndex
+  local gridIndex = rooms:Get(roomIndex).SafeGridIndex
 
   -- Teleport
   run.teleporting = true -- Mark that this is not a Cursed Eye teleport
@@ -3097,7 +3097,7 @@ function RacingPlus:Undefined()
        roomType == RoomType.ROOM_SECRET or -- 7
        roomType == RoomType.ROOM_SUPERSECRET then -- 8
 
-      roomIndexes[#roomIndexes + 1] = rooms:Get(i).GridIndex
+      roomIndexes[#roomIndexes + 1] = rooms:Get(i).SafeGridIndex
     end
   end
   if insertErrorRoom then
@@ -3185,7 +3185,7 @@ function RacingPlus:Telepills()
   -- Find the indexes for all of the room possibilities
   local roomIndexes = {}
   for i = 0, rooms.Size - 1 do -- This is 0 indexed
-    local gridIndex = rooms:Get(i).GridIndex
+    local gridIndex = rooms:Get(i).SafeGridIndex
     roomIndexes[#roomIndexes + 1] = gridIndex
   end
   if insertErrorRoom then
