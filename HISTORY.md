@@ -2,6 +2,13 @@
 
 Note that the Racing+ Mod version will almost always match the client version. This means that the version number of the mod may increase, but have no actual new in-game changes. All gameplay related changes will be listed below.
 
+* *0.2.61* - Unreleased
+  * Maggy starts with the Soul Jar, a new passive item. (This is to make the R+14 speedrun category interesting.)
+  * The Soul Jar has the following effects:
+    * You no longer gain health from soul/black hearts.
+    * You gain an empty red heart container for every 4 soul/black hearts picked up.
+    * You always have a 100% devil deal chance if no damage is taken.
+    * You always have a 9% devil deal chance if damage is taken.
 * *0.2.59* - March 4th
   * Fixed the (vanilla) bug with Eden's Soul where it would not start off at 0 charges.
   * Crystal Ball is now seeded.

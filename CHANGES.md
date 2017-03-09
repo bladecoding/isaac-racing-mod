@@ -27,7 +27,13 @@ In terms of what to change about the game, the mod has several goals, and attemp
   * Blue Baby starts with three and a half soul hearts.
   * Azazel starts with half a red heart and half a soul heart.
 * Judas starts with a bomb instead of 3 coins.
-* Keeper starts with Greed's Gullet, Duality, and 50 cents.
+* Keeper starts with Greed's Gullet, Duality, and 50 cents. (This is to make the R+9 speedrun category interesting.)
+* Maggy starts with the Soul Jar, a new passive item. (This is to make the R+14 speedrun category interesting.)
+* The Soul Jar has the following effects:
+  * You no longer gains health from soul/black hearts.
+  * You gain an empty red heart container on the 4th soul/black heart.
+  * You always have a 100% devil deal chance if no damage is taken.
+  * You always have a 9% devil deal chance if damage is taken.
 
 ### 2) Devil Room & Angel Room Changes
 
@@ -76,6 +82,7 @@ Many rooms with unavoidable damage or bugs have been fixed or deleted.
 * Teleporting to the Dark Room via a Sacrifice Room will send you to the next floor instead. (This is to prevent exploiting races to The Lamb or Mega Satan.)
 * Eden's Soul will now always properly start at 0 charges.
 * The door opening sound will no longer play in crawlspaces.
+* The "Rerun" feature is psuedo-implemented for the mod by spawning a Forget Me Now after a race is completed.
 * The Polaroid or The Negative will be automatically removed depending on your run goal. By default, it will remove The Negative.
 * The trapdoor or the beam of light on Womb 2 will be automatically removed depending on your run goal. By default, it will remove the trapdoor.
 
@@ -104,7 +111,6 @@ Historically, most speedruns and races have been unseeded with the goal of killi
 ### Dark Room
 
 * 4 gold chests will now spawn at the beginning of the Dark Room (instead of red chests).
-* We Need To Go Deeper! is removed from all item pools.
 
 ### Mega Satan
 

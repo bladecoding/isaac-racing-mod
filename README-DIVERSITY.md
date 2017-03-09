@@ -10,6 +10,12 @@ Diversity is meant to be a fun mode, and there is no official leaderboard for it
 
 <br />
 
+## Reset Time Reduction
+
+To cut down on the reset time to get the run going, the first Treasure Room will always have 2 item pedestals.
+
+<br />
+
 ## Item Bans
 
 The following items are removed from all items pools, because they override tear effects. Note that it is still possible to start with them as one of the 3 random passive items.
@@ -25,7 +31,18 @@ The following items are also removed from all item pools, because they allow you
 * D Infinity
 
 <br />
- 
+
+## Extra Included Items
+
+To add to the diversity, several extra starting items are added to the Treasure Room Pool, but ONLY for Basement 1:
+
+* Crown of Light
+* Godhead
+* Sacred Heart
+* Incubus
+
+<br />
+
 ## Excluded Starting Items
 
 Some items hardly have an effect on the playstyle of the run. Thus, it is not possible to start with the following items:

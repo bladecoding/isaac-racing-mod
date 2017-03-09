@@ -6,6 +6,14 @@
 --[[
 
 TODO:
+- get rid of hourglass
+- fix bug wehre you switch out pony and then the pony is still visible
+- fix passion bug
+- fix dea1h bug
+- fix mega satan on chest
+- give d4 to the lost
+- remove betrayal animation (wait for Item Tracker to be fixed)
+
 - put ready below top graphic
 - Add trophy for finish
 - forget me now after killing end boss
@@ -24,18 +32,28 @@ TODO:
 TODO CAN'T FIX:
 - Automatically enable BLCK CNDL seed (not possible with current bindings)
 - Automatically enter in a seed for seeded races (not possible with current bindings)
-- Fix shop "item on sale" bug (setting price to anything other than 15 just causes it to go back to 15 on the next frame)
+- Fix shop "item on sale" bug (setting price to anything other than 15 just causes it to go back to 15 on the next
+  frame)
 - Fix shop pedestal items "rerolling into consumables" bug
-- Fix Keeper getting narrow boss rooms on floors 2-7 (the "level:GetRooms()" function returns only one room before the floor transition animation starts)
+- Fix Keeper getting narrow boss rooms on floors 2-7 (the "level:GetRooms()" function returns only one room before
+  the floor transition animation starts)
 - Do item bans in a proper way via editing item pools (not possible to modify item pools via current bindings)
   - When spawning an item via the console (like "spawn 5.100.12"), it removes it from item pools.
-  - When spawning a specific item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 12, 0)"), it does not remove it from any pools.
-  - When spawning a random item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 0, 0)"), it removes it from item pools.
-  - When giving the player an item with Lua (like "player:AddCollectible(race.startingItems[i], 12, true)"), it does not remove it from any pools.
-- Skip the fade in and fade out animation when traveling to the next floor (need console access or the "level:StartStageTransition()" function's second argument to be working, because you call that after "level:SetStage()")
-- Stop the player from being teleported upon entering a room with Gurdy, Mom's Heart, or It Lives (Isaac is placed in the location and you can't move him fast enough)
-- Fix Dead Eye on poop / red poop / static TNT barrels (can't modify existing items, no "player:GetDeadEyeCharge()" function)
+  - When spawning a specific item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 12, 0)"),
+    it does not remove it from any pools.
+  - When spawning a random item with Lua (like "game:Spawn(5, 100, Vector(300, 300), Vector(0, 0), nil, 0, 0)"), it
+    removes it from item pools.
+  - When giving the player an item with Lua (like "player:AddCollectible(race.startingItems[i], 12, true)"), it does
+    not remove it from any pools.
+- Skip the fade in and fade out animation when traveling to the next floor (need console access or the
+  "level:StartStageTransition()" function's second argument to be working, because you call that after
+  "level:SetStage()")
+- Stop the player from being teleported upon entering a room with Gurdy, Mom's Heart, or It Lives (Isaac is placed in
+  the location and you can't move him fast enough)
+- Fix Dead Eye on poop / red poop / static TNT barrels (can't modify existing items, no "player:GetDeadEyeCharge()"
+  function)
 - Make a 3rd color hue on the map for rooms that are not cleared but you have entered.
+- Make fast-clear apply to Challenge rooms and the Boss Rush ("room:SetAmbushDone()" doesn't do anything)
 
 --]]
 
@@ -48,6 +66,7 @@ local run = {
   roomsCleared          = 0,
   roomsEntered          = 0,
   roomEntering          = false,
+  levelDamaged          = false,
   currentFloor          = 0,
   currentRoomClearState = true,
   currentGlobins        = {},
@@ -59,7 +78,7 @@ local run = {
   teleporting           = false,
   usedTeleport          = false,
   touchedBookOfSin      = false,
-  maggySouls            = 0,
+  soulJarSouls          = 0,
   edensSoulSet          = false,
   edensSoulCharges      = 0,
   keeperBaseHearts      = 4, -- Either 4 (for base), 2, 0, -2, -4, -6, etc.
@@ -98,40 +117,46 @@ local raceVars = { -- Things that pertain to the race but are not read from the 
   hourglassUsed      = false,
   started            = false,
   startedTime        = 0,
-  updateCache        = 0, -- 0 is not update, 1 is set to update after the next run begins, 2 is after the next run has begun
+  updateCache        = 0, -- 0 is not update
+                          -- 1 is set to update after the next run begins
+                          -- 2 is after the next run has begun
+  removedMoreOptions = false,
   replacedScolex     = false,
   placedKeys         = false,
-  raceClear          = false,
+  finished           = false,
   fireworks          = 0,
 }
 local RNGCounter = {
-  InitialSeed,
-  BookOfSin,
-  CrystalBall,
-  Teleport, -- Broken Remote also uses this
-  Undefined,
-  Telepills,
-  SackOfPennies,
-  BombBag,
-  JuicySack,
-  MysterySack,
-  LilChest,
-  RuneBag,
-  AcidBaby,
-  SackOfSacks,
+  InitialSeed   = 0,
+  BookOfSin     = 0,
+  CrystalBall   = 0,
+  Teleport      = 0, -- Broken Remote also uses this
+  Undefined     = 0,
+  Telepills     = 0,
+  SackOfPennies = 0,
+  BombBag       = 0,
+  JuicySack     = 0,
+  MysterySack   = 0,
+  LilChest      = 0,
+  RuneBag       = 0,
+  AcidBaby      = 0,
+  SackOfSacks   = 0,
 }
 local spriteTable = {}
 local spriteTableSchoolBag = {}
+local spriteTableSoulJar = {}
 
 -- Collectibles
-CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43
-CollectibleType.COLLECTIBLE_CRYSTAL_BALL_SEEDED = 59
-CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER = 61
-CollectibleType.COLLECTIBLE_OFF_LIMITS = 235
-CollectibleType.COLLECTIBLE_DEBUG = 263
+CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED = 43 -- Active
+CollectibleType.COLLECTIBLE_CRYSTAL_BALL_SEEDED = 59 -- Active
+CollectibleType.COLLECTIBLE_SOUL_JAR = 61 -- Passive
+CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER = 235 -- Active
+CollectibleType.COLLECTIBLE_OFF_LIMITS = 235 -- Passive
+CollectibleType.COLLECTIBLE_DEBUG = 263 -- Active
+CollectibleType.COLLECTIBLE_TROPHY = Isaac.GetItemIdByName("Trophy") -- Passive
 
 -- Extra enums
-RoomTransition = { -- Spaded by ilise rose (@yatboim)
+local RoomTransition = { -- Spaded by ilise rose (@yatboim)
   TRANSITION_NONE = 0,
   TRANSITION_DEFAULT = 1,
   TRANSITION_STAGE = 2,
@@ -146,7 +171,7 @@ RoomTransition = { -- Spaded by ilise rose (@yatboim)
   TRANSITION_D7 = 13,
   TRANSITION_MISSING_POSTER = 14
 }
-LevelGridIndex = { -- Spaded by me
+local LevelGridIndex = { -- Spaded by me
   GRIDINDEX_I_AM_ERROR = -2,
   GRIDINDEX_CRAWLSPACE = -4,
   GRIDINDEX_BOSS_RUSH = -5,
@@ -165,7 +190,7 @@ Isaac.DebugString("+----------------------+")
 --
 
 -- From: http://lua-users.org/wiki/SimpleRound
-function round(num, numDecimalPlaces)
+local function round(num, numDecimalPlaces)
   local mult = 10 ^ (numDecimalPlaces or 0)
   return math.floor(num * mult + 0.5) / mult
 end
@@ -175,7 +200,7 @@ end
 --
 
 -- Call this once to load the PNG from the anm2 file
-function spriteInit(spriteType, spriteName)
+local function spriteInit(spriteType, spriteName)
   -- If this is a new sprite type, initialize it in the sprite table
   if spriteTable[spriteType] == nil then
     spriteTable[spriteType] = {}
@@ -195,12 +220,13 @@ function spriteInit(spriteType, spriteName)
 
   -- Otherwise, initialize the sprite
   spriteTable[spriteType].sprite = Sprite()
-  spriteTable[spriteType].sprite:Load("gfx/race/" .. spriteName .. ".anm2", true) -- The second argument is "LoadGraphics"
+  spriteTable[spriteType].sprite:Load("gfx/race/" .. spriteName .. ".anm2", true)
+  -- The second argument is "LoadGraphics"
   spriteTable[spriteType].spriteName = spriteName
 end
 
 -- Call this every frame in MC_POST_RENDER
-function spriteDisplay()
+local function spriteDisplay()
   if race.status == "none" then
     return
   end
@@ -231,7 +257,7 @@ function spriteDisplay()
   end
 end
 
-function spriteDisplaySchoolBag()
+local function spriteDisplaySchoolBag()
   if race.schoolBag == false or
      run.schoolBagItem == 0 or
      spriteTableSchoolBag.item == nil then
@@ -240,8 +266,8 @@ function spriteDisplaySchoolBag()
   end
 
   -- Local variables
-  local itemX = 45;
-  local itemY = 50;
+  local itemX = 45
+  local itemY = 50
   local barXOffset = 17
   local barYOffset = 1
   local itemVector = Vector(itemX, itemY)
@@ -281,12 +307,76 @@ function spriteDisplaySchoolBag()
   end
 end
 
-function timerUpdate()
+local function spriteDisplaySoulJar()
+  -- Local variables
+  local game = Game()
+  local player = game:GetPlayer(0)
+  local character = player:GetPlayerType()
+  local maxHearts = player:GetMaxHearts()
+  local extraLives = player:GetExtraLives()
+
+  -- UNCOMMENT (1/3)
+  if character ~= 99 then
+  --if character ~= PlayerType.PLAYER_MAGDALENA then
+    return
+  end
+
+  if spriteTableSoulJar.barBack == nil then
+    -- Load the sprites
+    spriteTableSoulJar.barBack = Sprite()
+    spriteTableSoulJar.barBack:Load("gfx/ui/ui_chargebar2.anm2", true)
+    spriteTableSoulJar.barBack:Play("BarEmpty", true)
+    spriteTableSoulJar.barMeter = Sprite()
+    spriteTableSoulJar.barMeter:Load("gfx/ui/ui_chargebar2.anm2", true)
+    spriteTableSoulJar.barMeter:Play("BarFull", true)
+    spriteTableSoulJar.barLines = Sprite()
+    spriteTableSoulJar.barLines:Load("gfx/ui/ui_chargebar2.anm2", true)
+    spriteTableSoulJar.barLines:Play("BarOverlay12", true) -- This is custom replaced with an 8 charge bar
+  end
+
+  local heartLength = 12
+  if maxHearts > 12 then
+    maxHearts = 12 -- After 6 heart containers, it wraps to a second row
+  end
+  local barOffset = (maxHearts / 2) * heartLength
+  if extraLives > 9 then
+    barOffset = barOffset + 20
+    if player:HasCollectible(CollectibleType.COLLECTIBLE_GUPPYS_COLLAR) then -- 212
+      barOffset = barOffset + 6
+    end
+  elseif extraLives > 0 then
+    barOffset = barOffset + 16
+    if player:HasCollectible(CollectibleType.COLLECTIBLE_GUPPYS_COLLAR) then -- 212
+      barOffset = barOffset + 4
+    end
+  end
+
+  local barX = 49 + barOffset -- Place to the right of the red heart containers
+  local barY = 17
+  local barVector = Vector(barX, barY)
+
+  -- Draw the charge bar 1/3 (the background)
+  spriteTableSoulJar.barBack:Update()
+  spriteTableSoulJar.barBack:Render(barVector, Vector(0, 0), Vector(0, 0))
+
+  -- Draw the charge bar 2/3 (the bar itself, clipped appropriately)
+  spriteTableSoulJar.barMeter:Update()
+  local meterMultiplier = 3 -- 3 for a 8 charge item
+  local meterClip = 26 - (run.soulJarSouls * meterMultiplier)
+  spriteTableSoulJar.barMeter:Render(barVector, Vector(0, meterClip), Vector(0, 0))
+
+  -- Draw the charge bar 3/3 (the segment lines on top)
+  spriteTableSoulJar.barLines:Update()
+  spriteTableSoulJar.barLines:Render(barVector, Vector(0, 0), Vector(0, 0))
+end
+
+local function timerUpdate()
   if raceVars.startedTime == 0 then
     return
   end
 
-  local elapsedTime = (Isaac:GetTime() - raceVars.startedTime) / 1000 -- This will be in milliseconds, so we divide by 1000
+  -- This will be in milliseconds, so we divide by 1000
+  local elapsedTime = (Isaac:GetTime() - raceVars.startedTime) / 1000
 
   local minutes = math.floor(elapsedTime / 60)
   if minutes < 10 then
@@ -311,14 +401,14 @@ end
 -- Misc. subroutines
 --
 
-function incrementRNG(seed)
+local function incrementRNG(seed)
   -- The initial RNG value recieved from the B1 floor RNG is a 10 digit integer
   -- So let's just continue to work with integers that are roughly in this range
   math.randomseed(seed)
   return math.random(1, 9999999999)
 end
 
-function addItemBanList(itemID)
+local function addItemBanList(itemID)
   local inBanList = false
   for i = 1, #raceVars.itemBanList do
     if raceVars.itemBanList[i] == itemID then
@@ -331,7 +421,7 @@ function addItemBanList(itemID)
   end
 end
 
-function addTrinketBanList(trinketID)
+local function addTrinketBanList(trinketID)
   local inBanList = false
   for i = 1, #raceVars.trinketBanList do
     if raceVars.trinketBanList[i] == trinketID then
@@ -344,7 +434,7 @@ function addTrinketBanList(trinketID)
   end
 end
 
-function gridToPos(x, y)
+local function gridToPos(x, y)
   local game = Game()
   local room = game:GetRoom()
   x = x + 1
@@ -369,6 +459,7 @@ function RacingPlus:RunInit()
   run.roomsCleared = 0
   run.roomsEntered = 0
   run.roomEntering = false
+  run.levelDamaged = false
   run.currentFloor = 0
   run.currentRoomClearState = true
   run.currentGlobins = {}
@@ -380,7 +471,7 @@ function RacingPlus:RunInit()
   run.teleporting = false
   run.usedTeleport = false
   run.touchedBookOfSin = false
-  run.maggySouls = 0
+  run.soulJarSouls = 0
   run.edensSoulSet = false
   run.edensSoulCharges = 0
   run.keeperBaseHearts = 4
@@ -399,9 +490,10 @@ function RacingPlus:RunInit()
   -- Reset some race variables that we keep track of per run
   raceVars.itemBanList = {}
   raceVars.trinketBanList = {}
+  raceVars.removedMoreOptions = false
   raceVars.replacedScolex = false
   raceVars.placedKeys = false
-  raceVars.raceClear = false
+  raceVars.finished = false
   raceVars.fireworks = 0
 
   -- Reset some RNG counters to the floor RNG of B1 for this seed
@@ -437,33 +529,33 @@ function RacingPlus:RunInit()
 
   -- Check what character we are on
   local playerType = player:GetPlayerType()
-  if playerType == 0 then
+  if playerType == PlayerType.PLAYER_ISAAC then -- 0
     raceVars.character = "Isaac"
-  elseif playerType == 1 then
+  elseif playerType == PlayerType.PLAYER_MAGDALENA then -- 1
     raceVars.character = "Magdalene"
-  elseif playerType == 2 then
+  elseif playerType == PlayerType.PLAYER_CAIN then -- 2
     raceVars.character = "Cain"
-  elseif playerType == 3 then
+  elseif playerType == PlayerType.PLAYER_JUDAS then -- 3
     raceVars.character = "Judas"
-  elseif playerType == 4 then
+  elseif playerType == PlayerType.PLAYER_XXX then -- 4
     raceVars.character = "Blue Baby"
-  elseif playerType == 5 then
+  elseif playerType == PlayerType.PLAYER_EVE then -- 5
     raceVars.character = "Eve"
-  elseif playerType == 6 then
+  elseif playerType == PlayerType.PLAYER_SAMSON then -- 6
     raceVars.character = "Samson"
-  elseif playerType == 7 then
+  elseif playerType == PlayerType.PLAYER_AZAZEL then -- 7
     raceVars.character = "Azazel"
-  elseif playerType == 8 then
+  elseif playerType == PlayerType.PLAYER_LAZARUS then -- 8
     raceVars.character = "Lazarus"
-  elseif playerType == 9 then
+  elseif playerType == PlayerType.PLAYER_EDEN then  -- 9
     raceVars.character = "Eden"
-  elseif playerType == 10 then
+  elseif playerType == PlayerType.PLAYER_THELOST then -- 10
     raceVars.character = "The Lost"
-  elseif playerType == 13 then
+  elseif playerType == PlayerType.PLAYER_LILITH then -- 13
     raceVars.character = "Lilith"
-  elseif playerType == 14 then
+  elseif playerType == PlayerType.PLAYER_KEEPER then -- 14
     raceVars.character = "Keeper"
-  elseif playerType == 15 then
+  elseif playerType == PlayerType.PLAYER_APOLLYON then -- 15
     raceVars.character = "Apollyon"
   end
 
@@ -481,7 +573,7 @@ end
 function RacingPlus:CharacterInit()
   -- Local variables
   local game = Game()
-  local player = Game():GetPlayer(0)
+  local player = game:GetPlayer(0)
   local playerType = player:GetPlayerType()
 
   -- Do character-specific actions
@@ -489,6 +581,8 @@ function RacingPlus:CharacterInit()
     -- Add the School Bag item
     run.schoolBagItem = CollectibleType.COLLECTIBLE_YUM_HEART -- 45
     Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_YUM_HEART))
+    --player:AddCollectible(CollectibleType.COLLECTIBLE_SOUL_JAR, 0, false) -- 61
+    -- (uncomment this once the item tracker is fixed for custom items)
 
   elseif playerType == PlayerType.PLAYER_JUDAS then -- 3
     -- Judas needs to be at half of a red heart
@@ -576,15 +670,15 @@ function RacingPlus:CharacterInit()
   end
 end
 
--- This occurs when first going into the game, after using the Glowing Hour Glass during race countdown, and after a reset occurs mid-race
+-- This occurs when first going into the game, after using the Glowing Hour Glass during race countdown,
+-- and after a reset occurs mid-race
 function RacingPlus:RunInitForRace()
   -- Local variables
   local game = Game()
   local player = game:GetPlayer(0)
-  local inBanList
 
-  -- Do Pageant Boy related initiailization
   if race.rFormat == "pageant" then
+    -- Pageant Boy related initiailization
     run.schoolBagItem = CollectibleType.COLLECTIBLE_D6 -- 105
     run.schoolBagCharges = 6
     player:AddCollectible(CollectibleType.COLLECTIBLE_MAXS_HEAD, 0, false) -- 4
@@ -644,13 +738,14 @@ function RacingPlus:RunInitForRace()
     if race.startingItems[i] == 441 and raceVars.hourglassUsed == false then
       -- Mega Blast bugs out if Glowing Hour Glass is used while the blast is occuring
       -- So, give them a placeholder Mega Blast if this is before the race has started
-      player:AddCollectible(CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER, 12, false) -- 61
+      player:AddCollectible(CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER, 12, false) -- 235
     else
       -- Give the item; the second argument is charge amount, and the third argument is "AddConsumables"
       player:AddCollectible(race.startingItems[i], 12, true)
     end
 
-    -- Giving the player the item does not actually remove it from any of the pools, so we have to expliticly add it to the ban list
+    -- Giving the player the item does not actually remove it from any of the pools,
+    -- so we have to expliticly add it to the ban list
     addItemBanList(race.startingItems[i])
 
     -- Find out if Crown of Light is one of the starting items
@@ -669,6 +764,11 @@ function RacingPlus:RunInitForRace()
     -- Add item bans for seeded mode
     addTrinketBanList(TrinketType.TRINKET_CAINS_EYE) -- 59
   elseif race.rFormat == "diversity" then
+    -- Diversity races start with More Options to reduce resetting
+    player:AddCollectible(CollectibleType.COLLECTIBLE_MORE_OPTIONS, 0, false) -- 414
+    Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_MORE_OPTIONS))
+    -- We don't need to show this on the item tracker to reduce clutter
+
     -- Add bans for diversity races
     addItemBanList(CollectibleType.COLLECTIBLE_MOMS_KNIFE) -- 114
     addItemBanList(CollectibleType.COLLECTIBLE_EPIC_FETUS) -- 168
@@ -676,11 +776,6 @@ function RacingPlus:RunInitForRace()
     addItemBanList(CollectibleType.COLLECTIBLE_D4) -- 284
     addItemBanList(CollectibleType.COLLECTIBLE_D100) -- 283
     addItemBanList(CollectibleType.COLLECTIBLE_DINF) -- 489
-  end
-
-  -- Add bans for The Lamb (Dark Room) races
-  if race.goal == "The Lamb" then
-    addItemBanList(CollectibleType.COLLECTIBLE_WE_NEED_GO_DEEPER) -- 84
   end
 
   -- If we need to update the cache, mark to do it on the next game frame
@@ -691,11 +786,8 @@ function RacingPlus:RunInitForRace()
   if race.status == "in progress" then
     -- The race has already started (we are late, or perhaps died in the middle of the race)
     RacingPlus:RaceStart()
-  elseif race.status == "starting" and raceVars.hourglassUsed == true then
-    -- Don't spawn the Gaping Maws after the reset
-  else
+  elseif race.status ~= "starting" or raceVars.hourglassUsed == false then
     -- Spawn two Gaping Maws (235.0)
-    local game = Game()
     game:Spawn(EntityType.ENTITY_GAPING_MAW, 0, Vector(280, 360), Vector(0,0), nil, 0, 0)
     game:Spawn(EntityType.ENTITY_GAPING_MAW, 0, Vector(360, 360), Vector(0,0), nil, 0, 0)
   end
@@ -728,7 +820,7 @@ end
 function RacingPlus:GetActiveCollectibleCharges(itemID)
   local charges = 0
   if itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH or -- 441
-     itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER or -- 61
+     itemID == CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER or -- 235
      itemID == CollectibleType.COLLECTIBLE_EDENS_SOUL or -- 490
      itemID == CollectibleType.COLLECTIBLE_DELIRIOUS then -- 510
 
@@ -879,7 +971,8 @@ function RacingPlus:RaceStart()
       -- Give the item; the second argument is charge amount, and the third argument is "AddConsumables"
       player:AddCollectible(race.startingItems[i], 12, true)
 
-      -- Giving the player the item does not actually remove it from any of the pools, so we have to expliticly add it to the ban list
+      -- Giving the player the item does not actually remove it from any of the pools,
+      -- so we have to expliticly add it to the ban list
       addItemBanList(race.startingItems[i])
     end
   end
@@ -897,6 +990,7 @@ function RacingPlus:FastClearRoom()
   local level = game:GetLevel()
   local stage = level:GetStage()
   local room = game:GetRoom()
+  local roomType = room:GetType()
   local player = game:GetPlayer(0)
 
   -- Set the room clear to true (so that it gets marked off on the minimap)
@@ -907,12 +1001,31 @@ function RacingPlus:FastClearRoom()
   for i = 0, 7 do
     door = room:GetDoor(i)
     if door ~= nil then
-      door:Open()
+      local openDoor = true
+      if race ~= nil and
+         race.rFormat == "seeded" and
+         door:IsRoomType(RoomType.ROOM_TREASURE) and -- 4
+         roomType ~= RoomType.ROOM_TREASURE then -- 4
+
+        openDoor = false
+      end
+      if openDoor then
+        door:Open()
+      end
     end
   end
 
   -- Check to see if it is a boss room
   if room:GetType() == RoomType.ROOM_BOSS then
+    -- Do the special Maggy Devil Room mechanic
+    --[[ UNCOMMENT (2/3)
+    if player:GetPlayerType() == PlayerType.PLAYER_MAGDALENA then -- 1
+      if run.levelDamaged == false then
+        game:SetLastDevilRoomStage(0) -- This ensures a 100% deal if no damage was taken
+      end
+    end
+    --]]
+
     -- Try and spawn a Devil Room or Angel Room
     -- (this takes into account their Devil/Angel percentage and so forth)
     room:TrySpawnDevilRoomDoor(true) -- The argument is "Animate"
@@ -1216,7 +1329,8 @@ function RacingPlus:FastClearRoom()
       -- So, spawn a random card (5.300.0) over and over until we get a rune
       while true do
         RNGCounter.RuneBag = incrementRNG(RNGCounter.RuneBag)
-        local entity = game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_TAROTCARD, pos, vel, player, 0, RNGCounter.RuneBag)
+        local entity = game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_TAROTCARD,
+                                  pos, vel, player, 0, RNGCounter.RuneBag)
         -- Hagalaz is 32 and Black Rune is 41
         if entity.SubType >= 32 and entity.SubType <= 41 then
           break
@@ -1277,39 +1391,52 @@ end
 -- Callbacks
 --
 
-function RacingPlus:EntityTakeDamage(TookDamage, DamageAmount, DamageFlag, DamageSource, DamageCountdownFrames)
-  -- Local variables
-  local game = Game()
-  local level = game:GetLevel()
-  local room = game:GetRoom()
-
+function RacingPlus:EntityTakeDamage(tookDamage, damageAmount, damageFlag, damageSource, damageCountdownFrames)
   --
-  -- Globins + Knights stuff
+  -- Magdalene damage tracking
   --
 
-  local npc = TookDamage:ToNPC()  
-  if npc == nil then
-    return
+  local player = tookDamage:ToPlayer()
+  if player ~= nil then
+    local selfDamage = false
+    for i = 0, 18 do -- We only need to iterate to 18
+      local bit = (damageFlag & (1 << i)) >> i
+      if (i == 5 or i == 18) and bit == 1 then -- 5 is DAMAGE_RED_HEARTS , 18 is DAMAGE_IV_BAG
+        selfDamage = true
+      end
+    end
+    if selfDamage == false then
+      run.levelDamaged = true
+    end
   end
 
-  -- We want to track Globins for potential softlocks
-  if (npc.Type == EntityType.ENTITY_GLOBIN or
-      npc.Type == EntityType.ENTITY_BLACK_GLOBIN) and
-     run.currentGlobins[npc.Index] == nil then
+  --
+  -- Globins softlock prevention
+  --
 
-    run.currentGlobins[npc.Index] = {
-      npc       = npc,
-      lastState = npc.State,
-      regens    = 0,
-    }
+  local npc = tookDamage:ToNPC()
+  if npc ~= nil then
+    if (npc.Type == EntityType.ENTITY_GLOBIN or
+        npc.Type == EntityType.ENTITY_BLACK_GLOBIN) and
+       run.currentGlobins[npc.Index] == nil then
+
+      run.currentGlobins[npc.Index] = {
+        npc       = npc,
+        lastState = npc.State,
+        regens    = 0,
+      }
+    end
   end
 end
 
 function RacingPlus:EvaluateCache(player, cacheFlag)
-  if raceVars.character == "Keeper" and cacheFlag == CacheFlag.CACHE_RANGE then -- 8
-    local maxHearts = player:GetMaxHearts()
-    local coins = player:GetNumCoins()
-    local coinContainers = 0
+  local character = player:GetPlayerType()
+  local maxHearts = player:GetMaxHearts()
+  local coins = player:GetNumCoins()
+  local coinContainers = 0
+
+  if character == PlayerType.PLAYER_KEEPER and -- 14
+     cacheFlag == CacheFlag.CACHE_RANGE then -- 8
 
     -- Find out how many coin containers we should have
     -- (2 is equal to 1 actual heart container)
@@ -1353,7 +1480,7 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
     --   307 - Capricorn (already has range cache)
     --   312 - Maggy's Bow
     --   314 - Thunder Theighs
-    --   334 - The Body (gives 3 containers) 
+    --   334 - The Body (gives 3 containers)
     --   342 - Blue Cap
     --   346 - A Snack
     --   354 - Crack Jacks
@@ -1376,16 +1503,17 @@ function RacingPlus:EvaluateCache(player, cacheFlag)
             player:AddMaxHearts(-24, true) -- Remove all hearts
             player:AddMaxHearts(coinContainers, true) -- Give whatever containers we should have from coins
             player:AddHearts(24) -- This is needed because all the new heart containers will be empty
-            -- We have no way of knowing what the current health was before, because "player:GetHearts()" returns 0 at this point
-            -- So, just give them max health
+            -- We have no way of knowing what the current health was before, because "player:GetHearts()"
+            -- returns 0 at this point. So, just give them max health.
             Isaac.DebugString("Set 0 heart containers to Keeper (Abaddon).")
 
           elseif HPItemArray[i] == CollectibleType.COLLECTIBLE_DEAD_CAT then -- 81
             player:AddMaxHearts(-24, true) -- Remove all hearts
-            player:AddMaxHearts(2 + coinContainers, true) -- Give 1 heart container + whatever containers we should have from coins
+            player:AddMaxHearts(2 + coinContainers, true) -- Give 1 heart container +
+                                                          -- whatever containers we should have from coins
             player:AddHearts(24) -- This is needed because all the new heart containers will be empty
-            -- We have no way of knowing what the current health was before, because "player:GetHearts()" returns 0 at this point
-            -- So, just give them max health
+            -- We have no way of knowing what the current health was before, because "player:GetHearts()"
+            -- returns 0 at this point. So, just give them max health.
             Isaac.DebugString("Set 1 heart container to Keeper (Dead Cat).")
 
           elseif baseHearts < 0 and
@@ -1447,11 +1575,7 @@ end
 function RacingPlus:NPCUpdate(aNpc)
   -- Local variables
   local game = Game()
-  local runFrameCount = game:GetFrameCount()
-  local level = game:GetLevel()
-  local stage = level:GetStage()
   local room = game:GetRoom()
-  local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
 
   --
   -- Lock Knights that are in the "warmup" animation
@@ -1502,6 +1626,8 @@ function RacingPlus:NPCUpdate(aNpc)
   end
 
   -- Only look when the the room is not cleared yet
+  -- (the room clear state is always true when fighting in Challenge Rooms and Boss Rushes,
+  -- but we don't want fast-clear to apply to those due to limitations in the Afterbirth+ API)
   if room:IsClear() then
     return
   end
@@ -1550,7 +1676,8 @@ function RacingPlus:FastClearCheckAlive()
          npc.Type == EntityType.ENTITY_BLASTOCYST_MEDIUM or -- 75
          npc.Type == EntityType.ENTITY_BLASTOCYST_SMALL or -- 76
          npc.Type == EntityType.ENTITY_MOTER or -- 80
-         (npc.Type == EntityType.ENTITY_FALLEN and npc.Variant ~= 1) or -- 81 (fast-clear should apply to Krampus)
+         (npc.Type == EntityType.ENTITY_FALLEN and npc.Variant ~= 1 and npc.Scale ~= 0.75) or
+         -- 81 (fast-clear should apply to Krampus and split Fallens)
          npc.Type == EntityType.ENTITY_GURGLE or -- 87
          npc.Type == EntityType.ENTITY_HANGER or -- 90
          npc.Type == EntityType.ENTITY_SWARMER or -- 91
@@ -1599,11 +1726,13 @@ function RacingPlus:PlayerInit(player)
     mainPlayer:AnimateSad() -- Play a sound effect to communicate that the player made a mistake
     player:Kill() -- This kills the co-op baby, but the character will still get their health back for some reason
 
-    -- Since the player gets their health back, it is still possible to steal devil deals, so remove all item pedestals in the room
+    -- Since the player gets their health back, it is still possible to steal devil deals, so remove all unpurchased
+    -- Devil Room items in the room (which will have prices of either -1 or -2)
     local entities = Isaac.GetRoomEntities()
     for i = 1, #entities do
       if entities[i].Type == EntityType.ENTITY_PICKUP and -- If this is a pedestal item (5.100)
-         entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE then
+         entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and
+         entities[i]:ToPickup().Price < 0 then
 
         entities[i]:Remove()
       end
@@ -1623,6 +1752,7 @@ function RacingPlus:PostRender()
   local room = game:GetRoom()
   local roomFrameCount = room:GetFrameCount()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
+  local roomType = room:GetType()
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
   local playerSprite = player:GetSprite()
@@ -1634,8 +1764,10 @@ function RacingPlus:PostRender()
 
   if race == nil or -- The "race" table will only be nil if reading the "save.dat" file failed
      raceVars.loadNextFrame or -- We explicitly need to check for updates on this frame
-     (race.status == "starting" and isaacFrameCount % 2 == 0) or -- We want to check for updates every other frame if the race is starting so that the countdown is smooth
-     isaacFrameCount % 30 == 0 then -- Otherwise, only check for updates every half second, since file reads are expensive
+     (race.status == "starting" and isaacFrameCount % 2 == 0) or
+     -- We want to check for updates every other frame if the race is starting so that the countdown is smooth
+     isaacFrameCount % 30 == 0 then -- Otherwise, only check for updates every half second,
+                                    -- since file reads are expensive
 
     -- The server will write data for us to the "save.dat" file in the mod subdirectory
     -- From: https://www.reddit.com/r/themoddingofisaac/comments/5q3ml0/tutorial_saving_different_moddata_for_each_run/
@@ -1685,7 +1817,8 @@ function RacingPlus:PostRender()
   end
 
   -- Make sure that some race related variables are reset
-  -- (we need to check for "open" because it is possible to quit at the main menu and then join another race before starting the game)
+  -- (we need to check for "open" because it is possible to quit at the main menu and
+  -- then join another race before starting the game)
   if race.status == "none" or race.status == "open" then
     raceVars.hourglassUsed = false
     raceVars.started = false
@@ -1700,14 +1833,17 @@ function RacingPlus:PostRender()
 
   spriteDisplay()
   spriteDisplaySchoolBag()
+  spriteDisplaySoulJar()
 
   --
   -- Check to see if we are starting a run
   -- (this does not work if we put it in a PostUpdate callback because that only starts on the first frame of movement)
-  -- (this does not work if we put it in a PlayerInit callback because Eve/Keeper are given their active items after the callback has fired)
+  -- (this does not work if we put it in a PlayerInit callback because Eve/Keeper are given their active items after the
+  -- callback has fired)
   --
 
-  if gameFrameCount == 0 and run.initializing == false then -- This will be at 0 until the first frame of player movement
+  -- This will be at 0 until the first frame of player movement
+  if gameFrameCount == 0 and run.initializing == false then
     run.initializing = true
     RacingPlus:RunInit()
   elseif gameFrameCount > 0 and run.initializing == true then
@@ -1716,7 +1852,8 @@ function RacingPlus:PostRender()
 
   --
   -- Keep track of when we change floors
-  -- (this has to be in the PostRender callback because we don't want to wait for the floor transition animation to complete before teleporting away from the Dark Room)
+  -- (this has to be in the PostRender callback because we don't want to wait for the floor transition animation to
+  -- complete before teleporting away from the Dark Room)
   --
 
   if stage ~= run.currentFloor then
@@ -1733,12 +1870,16 @@ function RacingPlus:PostRender()
     -- Set the new floor
     run.currentFloor = stage
 
+    -- Reset some per level flags
+    run.levelDamaged = false
+
     -- Reset the RNG of some items that should be seeded per floor
     local floorSeed = level:GetDungeonPlacementSeed()
     RNGCounter.Teleport = floorSeed
     RNGCounter.Undefined = floorSeed
     RNGCounter.Telepills = floorSeed
-    for i = 1, 200 do -- Increment the RNG 100 times so that players cannot use knowledge of Teleport! teleports to determine where the Telepills destination will be
+    for i = 1, 200 do -- Increment the RNG 100 times so that players cannot use knowledge of Teleport! teleports
+                      -- to determine where the Telepills destination will be
       RNGCounter.Telepills = incrementRNG(RNGCounter.Telepills)
     end
 
@@ -1750,23 +1891,28 @@ function RacingPlus:PostRender()
       raceVars.placedKeys = true
 
       -- Key Piece 1 (5.100.238)
-      -- 275,175 & 375, 175
-      game:Spawn(5, 100, gridToPos(4, 0), Vector(0, 0), nil, CollectibleType.COLLECTIBLE_KEY_PIECE_1, roomSeed)
+      game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, gridToPos(4, 0), Vector(0, 0), nil,
+                 CollectibleType.COLLECTIBLE_KEY_PIECE_1, roomSeed)
 
       -- Key Piece 2 (5.100.239)
-      game:Spawn(5, 100, gridToPos(8, 0), Vector(0, 0), nil, CollectibleType.COLLECTIBLE_KEY_PIECE_2, roomSeed)
+      game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, gridToPos(8, 0), Vector(0, 0), nil,
+                 CollectibleType.COLLECTIBLE_KEY_PIECE_2, roomSeed)
+
+      Isaac.DebugString("Placed the two Mega Satan keys.")
     end
   end
 
   --
   -- Keep track of when we change rooms
-  -- (this has to be in the PostRender callback because we want the "Go!" graphic to be removed at the beginning of the room transition animation, not the end)
+  -- (this has to be in the PostRender callback because we want the "Go!" graphic to be removed at the
+  -- beginning of the room transition animation)
   --
 
   if roomFrameCount == 0 and run.roomEntering == false then
      run.roomEntering = true
      run.roomsEntered = run.roomsEntered + 1
-     run.currentRoomClearState = clear -- This is needed so that we don't get credit for clearing a room when bombing from a room with enemies into an empty room
+     run.currentRoomClearState = clear -- This is needed so that we don't get credit for clearing a room
+                                       -- when bombing from a room with enemies into an empty room
 
     -- Reset the lists we use to keep track of certain enemies
     run.currentGlobins = {} -- Used for softlock prevention
@@ -1792,8 +1938,43 @@ function RacingPlus:PostRender()
       player:AddMaxHearts(-2, true) -- Take away a heart container
       Isaac.DebugString("Took away 1 heart container from Keeper (via a Strength card).")
     end
+
+    -- Check to see if we need to remove More Options in a diversity race
+    if roomType == RoomType.ROOM_TREASURE and -- 4
+       player:HasCollectible(CollectibleType.COLLECTIBLE_MORE_OPTIONS) and -- 414
+       race.rFormat == "diversity" and
+       raceVars.removedMoreOptions == false then
+
+      raceVars.removedMoreOptions = true
+      player:RemoveCollectible(CollectibleType.COLLECTIBLE_MORE_OPTIONS) -- 414
+    end
   elseif roomFrameCount > 0 then
     run.roomEntering = false
+  end
+
+  --
+  -- Ban Basement 1 Treasure Rooms (1/2)
+  -- (this has to be in both PostRender and PostUpdate because
+  -- we want it to already be barred when the seed is fading in and
+  -- having it only in PostRender makes the door not solid)
+  --
+
+  if stage == 1 and race ~= nil and race.rFormat == "seeded" then
+    local door
+    for i = 0, 7 do
+      door = room:GetDoor(i)
+      if door ~= nil and
+         door:IsRoomType(RoomType.ROOM_TREASURE) and -- 4
+         roomType ~= RoomType.ROOM_TREASURE then -- 4
+         -- "door:IsOpen()" will always be true because
+         -- the game tries to reopen the door in a cleared room on every frame
+
+        door:Bar()
+
+        -- The bars are buggy and will only appear for the first few frames, so just disable them altogether
+        door.ExtraVisible = false
+      end
+    end
   end
 
   --
@@ -1842,7 +2023,8 @@ function RacingPlus:PostRender()
       elseif gridEntity:GetSaveState().Type == GridEntityType.GRID_STAIRS then -- 18
         -- Remove the animation when entering crawlspaces
         -- Check to see if the player is in a square around the stairs that will trigger the animation
-        -- ("room:GetGridIndex(player.Position) == gridEntity:GetGridIndex()" is too small of a square to trigger reliably)
+        -- ("room:GetGridIndex(player.Position) == gridEntity:GetGridIndex()" is too small of a square
+        -- to trigger reliably)
         local squareSize = 26 -- 25 is too small
         if gridEntity.State == 1 and -- The trapdoor is open
            run.crawlspaceEntering == false and
@@ -1879,7 +2061,7 @@ function RacingPlus:PostRender()
   end
 
   --
-  -- Fix seed "incrementation" from touching active pedestal items and do item/trinke bans
+  -- Fix seed "incrementation" from touching active pedestal items and do item/trinket bans
   -- (this also fixes Angel key pieces and Pandora's Box items being unseeded)
   --
 
@@ -1908,12 +2090,15 @@ function RacingPlus:PostRender()
     elseif entities[i].Type == EntityType.ENTITY_PICKUP and -- 5
        entities[i].Variant == PickupVariant.PICKUP_COLLECTIBLE and -- 100
        entities[i].InitSeed ~= roomSeed and -- If the InitSeed is equal to the roomSeed, we have already replaced it
-       gameFrameCount >= run.itemReplacementDelay and -- We need to delay after using a Void (in case the player has consumed a D6)
-       entities[i]:ToPickup().Price <= 0 then -- Skip purchasable items because of the "item on sale" bug and the "rerolling into consumables" bug
-       -- (Devil Deal items will be priced at either -1 or -2)
+       gameFrameCount >= run.itemReplacementDelay and -- We need to delay after using a Void
+                                                      -- (in case the player has consumed a D6)
+       entities[i]:ToPickup().Price <= 0 then -- Skip purchasable items because of the "item on sale" bug and
+                                              -- the "rerolling into consumables" bug
+                                              -- (Devil Deal items will be priced at either -1 or -2)
 
       -- Check to see if we already replaced it with a seeded pedestal
-      -- (this is necessary because it will be replaced while the room is loading but not take effect until a game frame ticks)
+      -- (this is necessary because it will be replaced while the room is loading but not take effect
+      -- until a game frame ticks)
       -- (it also takes 1 frame for an existing pedestal to get deleted)
       local itemIdentifier = tostring(entities[i].SubType) .. "-" .. tostring(entities[i].InitSeed)
       local alreadyReplaced = false
@@ -1932,8 +2117,8 @@ function RacingPlus:PostRender()
         local offLimits = false
         if race.rFormat == "seeded" and
            stage == 1 and
-           room:GetType() == RoomType.ROOM_TREASURE and
-           entities[i].SubType ~= CollectibleType.COLLECTIBLE_OFF_LIMITS then
+           room:GetType() == RoomType.ROOM_TREASURE and -- 4
+           entities[i].SubType ~= CollectibleType.COLLECTIBLE_OFF_LIMITS then -- 235
           offLimits = true
         end
 
@@ -1946,26 +2131,63 @@ function RacingPlus:PostRender()
           end
         end
 
+        -- Check to see if this is a special Basement 1 diversity reroll
+        local specialReroll = 0
+        if bannedItem and
+           stage == 1 and
+           roomType == RoomType.ROOM_TREASURE and -- 4
+           race.rFormat == "diversity" then
+
+          if entities[i].SubType == CollectibleType.COLLECTIBLE_MOMS_KNIFE then -- 114
+            specialReroll = CollectibleType.COLLECTIBLE_INCUBUS -- 360
+          elseif entities[i].SubType == CollectibleType.COLLECTIBLE_EPIC_FETUS then -- 168
+            specialReroll = CollectibleType.COLLECTIBLE_CROWN_OF_LIGHT -- 415
+          elseif entities[i].SubType == CollectibleType.COLLECTIBLE_TECH_X then -- 395
+            specialReroll = CollectibleType.COLLECTIBLE_GODHEAD -- 331
+          elseif entities[i].SubType == CollectibleType.COLLECTIBLE_D4 then -- 284
+            specialReroll = CollectibleType.COLLECTIBLE_SACRED_HEART -- 182
+          end
+        end
+
         local newPedestal
         if offLimits then
-          -- Change the item to Off Limits (235)
-          newPedestal = game:Spawn(5, 100, entities[i].Position, entities[i].Velocity, entities[i].Parent, CollectibleType.COLLECTIBLE_OFF_LIMITS, RNGCounter.InitialSeed)
-          game:Fart(newPedestal.Position, 0, newPedestal, 0.5, 0) -- Play a fart animation so that it doesn't look like some bug with the Racing+ mod
+          -- Change the item to Off Limits (5.100.235)
+          newPedestal = game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, entities[i].Position,
+                                   entities[i].Velocity, entities[i].Parent, CollectibleType.COLLECTIBLE_OFF_LIMITS,
+                                   RNGCounter.InitialSeed)
+          game:Fart(newPedestal.Position, 0, newPedestal, 0.5, 0)
+          -- Play a fart animation so that it doesn't look like some bug with the Racing+ mod
           Isaac.DebugString("Made a new random pedestal (Off Limits).")
+
+        elseif specialReroll ~= 0 then
+          -- Change the item to the special reroll (using the room seed)
+          newPedestal = game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, entities[i].Position,
+                                   entities[i].Velocity, entities[i].Parent, specialReroll, roomSeed)
+          game:Fart(newPedestal.Position, 0, newPedestal, 0.5, 0)
+          -- Play a fart animation so that it doesn't look like some bug with the Racing+ mod
+          Isaac.DebugString("Made a new special " .. tostring(specialReroll) ..
+                            " pedestal using seed: " .. tostring(roomSeed))
+
         elseif bannedItem then
           -- Make a new random item pedestal (using the B1 floor seed)
           -- (the new random item generated will automatically be decremented from item pools properly on sight)
-          newPedestal = game:Spawn(5, 100, entities[i].Position, entities[i].Velocity, entities[i].Parent, 0, RNGCounter.InitialSeed)
-          game:Fart(newPedestal.Position, 0, newPedestal, 0.5, 0) -- Play a fart animation so that it doesn't look like some bug with the Racing+ mod
+          newPedestal = game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, entities[i].Position,
+                                   entities[i].Velocity, entities[i].Parent, 0, RNGCounter.InitialSeed)
+          game:Fart(newPedestal.Position, 0, newPedestal, 0.5, 0)
+          -- Play a fart animation so that it doesn't look like some bug with the Racing+ mod
           Isaac.DebugString("Made a new random pedestal using seed: " .. tostring(RNGCounter.InitialSeed))
+
         else
-          -- Make a new copy of this item using the room seed
-          newPedestal = game:Spawn(5, 100, entities[i].Position, entities[i].Velocity, entities[i].Parent, entities[i].SubType, roomSeed)
+          -- Make a new copy of this item (using the room seed)
+          newPedestal = game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, entities[i].Position,
+                                   entities[i].Velocity, entities[i].Parent, entities[i].SubType, roomSeed)
 
           -- We don't need to make a fart noise because the swap will be completely transparent to the user
           -- (the sprites of the two items will obviously be identical)
-          -- We don't need to add this item to the ban list because since it already existed, it was properly decremented from the pools on sight
-          Isaac.DebugString("Made a copied " .. tostring(newPedestal.SubType) .. " pedestal using seed: " .. tostring(roomSeed))
+          -- We don't need to add this item to the ban list because since it already existed, it was properly
+          -- decremented from the pools on sight
+          Isaac.DebugString("Made a copied " .. tostring(newPedestal.SubType) ..
+                            " pedestal using seed: " .. tostring(roomSeed))
         end
 
         -- If we don't do this, the item will be fully recharged every time the player swaps it out
@@ -1978,56 +2200,6 @@ function RacingPlus:PostRender()
         newPedestal:ToPickup().TheresOptionsPickup = entities[i]:ToPickup().TheresOptionsPickup
 
         -- Now that we have created a new pedestal, we can delete the old one
-        entities[i]:Remove()
-      end
-
-    elseif entities[i].Type == EntityType.ENTITY_PICKUP and -- 5
-       entities[i].Variant == PickupVariant.PICKUP_TRINKET and -- 350
-       entities[i].InitSeed ~= roomSeed then
-
-      -- Delete Pageant Boy starting trinkets
-      if run.roomsEntered == 1 then
-        entities[i]:Remove()
-        break
-      end
-
-      -- Check to see if we already replaced it with a seeded trinket
-      -- (this is necessary because it will be replaced while the room is loading but not take effect until a game frame ticks)
-      -- (it also takes 1 frame for an existing trinket to get deleted)
-      local trinketIdentifier = tostring(entities[i].SubType) .. "-" .. tostring(entities[i].InitSeed)
-      local alreadyReplaced = false
-      for j = 1, #run.replacedTrinkets do
-        if trinketIdentifier == run.replacedTrinkets[j] then
-          alreadyReplaced = true
-          break
-        end
-      end
-
-      if alreadyReplaced == false then
-        -- Add it to the list of trinkets that have been replaced
-        run.replacedTrinkets[#run.replacedTrinkets + 1] = trinketIdentifier
-
-        -- Check to see if this trinket is banned
-        local bannedTrinket = false
-        for j = 1, #raceVars.trinketBanList do
-          if entities[i].SubType == raceVars.trinketBanList[j] then
-            bannedTrinket = true
-            break
-          end
-        end
-
-        local newTrinket
-        if bannedTrinket then
-          -- Spawn a new random trinket (using the B1 floor seed)
-          newTrinket = game:Spawn(5, 350, entities[i].Position, entities[i].Velocity, entities[i].Parent, 0, roomSeed)
-          Isaac.DebugString("Made a new random trinket using seed: " .. tostring(roomSeed))
-        else
-          -- Make a new copy of this trinket using the room seed
-          newTrinket = game:Spawn(5, 350, entities[i].Position, entities[i].Velocity, entities[i].Parent, entities[i].SubType, roomSeed)
-          Isaac.DebugString("Made a copied " .. tostring(newTrinket.SubType) .. " trinket using seed: " .. tostring(roomSeed))
-        end
-
-        -- Now that we have created a new trinket, we can delete the old one
         entities[i]:Remove()
       end
     end
@@ -2125,7 +2297,8 @@ function RacingPlus:PostRender()
       if raceVars.hourglassUsed == false then
         raceVars.hourglassUsed = true
 
-        -- For some reason, Glowing Hour Glass does not update the familiar cache properly, so we have to manually update the cache a frame from now
+        -- For some reason, Glowing Hour Glass does not update the familiar cache properly,
+        -- so we have to manually update the cache a frame from now
         for i = 1, #race.startingItems do
           if race.startingItems[i] == 172 or -- Sacrificial Dagger
              race.startingItems[i] == 275 or -- Lil' Brimstone
@@ -2137,7 +2310,8 @@ function RacingPlus:PostRender()
 
         -- Fix a bug with Dead Eye where the multiplier will not get properly reset after using Glowing Hour Glass
         for i = 1, 100 do
-          -- This function is analogous to missing a shot, so let's miss 100 shots to be sure that the multiplier is actually cleared
+          -- This function is analogous to missing a shot,
+          -- so let's miss 100 shots to be sure that the multiplier is actually cleared
           player:ClearDeadEyeCharge()
         end
 
@@ -2156,7 +2330,7 @@ function RacingPlus:PostRender()
       raceVars.startedTime = Isaac.GetTime()
 
       -- Draw the "Go!" graphic
-      spriteInit("top", "go") 
+      spriteInit("top", "go")
 
       -- Start the race, if it isn't already
       RacingPlus:RaceStart()
@@ -2175,15 +2349,19 @@ function RacingPlus:PostUpdate()
   local level = game:GetLevel()
   local stage = level:GetStage()
   local room = game:GetRoom()
+  local roomType = room:GetType()
   local roomSeed = room:GetSpawnSeed() -- Gets a reproducible seed based on the room, something like "2496979501"
   local clear = room:IsClear()
   local player = game:GetPlayer(0)
+  local character = player:GetPlayerType()
   local activeItem = player:GetActiveItem()
   local activeCharge = player:GetActiveCharge()
-  local hearts = player:GetHearts()
   local maxHearts = player:GetMaxHearts()
   local soulHearts = player:GetSoulHearts()
   local coins = player:GetNumCoins()
+  local trinket1 = player:GetTrinket(0)
+  local trinket2 = player:GetTrinket(1)
+  local isHoldingItem = player:IsHoldingItem()
   local isaacFrameCount = Isaac:GetFrameCount()
   local sfx = SFXManager()
 
@@ -2228,7 +2406,7 @@ function RacingPlus:PostUpdate()
   -- Keep track of our max hearts if we are Keeper (to fix the Greed's Gullet bug)
   --
 
-  if raceVars.character == "Keeper" then
+  if character == PlayerType.PLAYER_KEEPER then -- 14
     local coinContainers = 0
 
     -- Find out how many coin containers we should have
@@ -2248,7 +2426,8 @@ function RacingPlus:PostUpdate()
       -- Our health changed; we took a devil deal, took a health down pill, or went from 1 heart to 2 hearts
       local heartsDiff = baseHearts - run.keeperBaseHearts
       run.keeperBaseHearts = run.keeperBaseHearts + heartsDiff
-      Isaac.DebugString("Set new Keeper baseHearts to: " .. tostring(run.keeperBaseHearts) .. " (from detection, change was " .. tostring(heartsDiff) .. ")")
+      Isaac.DebugString("Set new Keeper baseHearts to: " .. tostring(run.keeperBaseHearts) ..
+                        " (from detection, change was " .. tostring(heartsDiff) .. ")")
     end
   end
 
@@ -2258,7 +2437,7 @@ function RacingPlus:PostUpdate()
   --
 
   -- If we are in a puzzle room, check to see if all of the plates have been pressed
-  if room:IsClear() == false and room:HasTriggerPressurePlates() then
+  if clear == false and room:HasTriggerPressurePlates() then
     -- Check all the grid entities in the room
     local allPushed = true
     local num = room:GetGridSize()
@@ -2281,38 +2460,54 @@ function RacingPlus:PostUpdate()
   end
 
   --
+  -- Ban Basement 1 Treasure Rooms (2/2)
+  -- (this has to be in both PostUpdate and PostRender because
+  -- we want it to already be barred when the seed is fading in and
+  -- having it only in PostRender makes the door not solid)
+  --
+
+  if stage == 1 and race ~= nil and race.rFormat == "seeded" then
+    local door
+    for i = 0, 7 do
+      door = room:GetDoor(i)
+      if door ~= nil and
+         door:IsRoomType(RoomType.ROOM_TREASURE) and -- 4
+         roomType ~= RoomType.ROOM_TREASURE then -- 4
+         -- "door:IsOpen()" will always be true because
+         -- the game tries to reopen the door in a cleared room on every frame
+
+        door:Bar()
+
+        -- The bars are buggy and will only appear for the first few frames, so just disable them altogether
+        door.ExtraVisible = false
+      end
+    end
+  end
+
+  --
   -- Fireworks
   --
 
-  -- If you have fought the last boss and they are dead, and the room is clear, then you win!
+  -- Winners get sparklies and fireworks
   --[[
-  if (game:HasEncounteredBoss(EntityType.ENTITY_ISAAC, 1) or 
-     game:HasEncounteredBoss(EntityType.ENTITY_MEGA_SATAN_2, 0) or 
-     game:HasEncounteredBoss(EntityType.ENTITY_THE_LAMB, 0)) and
-     room:IsClear() then
+  if raceVars.finished == true then
+    -- Give Isaac sparkly feet (1000.103.0)
+    Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.ULTRA_GREED_BLING, 0,
+                player.Position + RandomVector():__mul(10), Vector(0, 0), nil)
 
-    raceVars.raceClear = true
+    -- Spawn 30 fireworks (1000.104.0)
+    -- (some can be duds randomly and not spawn any fireworks after the 20 frame countdown)
+    if raceVars.fireworks < 40 and gameFrameCount % 20 == 0 then
+      for i = 1, 5 do
+        raceVars.fireworks = raceVars.fireworks + 1
+        local firework = Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.FIREWORKS, 0,
+                                     gridToPos(math.random(1, 11), math.random(2, 8)), Vector(0, 0), nil) -- 0,12  0,8
+        local fireworkEffect = firework:ToEffect()
+        fireworkEffect:SetTimeout(20)
+      end
+    end
   end
   --]]
-
-  -- Winners get sparklies and fireworks
-  if raceVars.raceClear == true then
-    -- Give Isaac sparkly feet
-    Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.ULTRA_GREED_BLING, 0, player.Position + RandomVector():__mul(10), Vector(0, 0), nil)
-
-    -- Spawn 30 fireworks
-    if raceVars.fireworks < 120 and gameFrameCount % 5 == 0 then
-      raceVars.fireworks = raceVars.fireworks + 1
-      local firework = Isaac.Spawn(EntityType.ENTITY_EFFECT, EffectVariant.FIREWORKS, 0, gridToPos(math.random(0, 12), math.random(0, 8)), Vector(0, 0), nil)
-      local fireworkEffect = firework:ToEffect()
-      fireworkEffect:SetTimeout(20)
-    end
-
-    -- Make Fireworks quieter
-    if sfx:IsPlaying(SoundEffect.SOUND_BOSS1_EXPLOSIONS) then -- 182
-      sfx:AdjustVolume(SoundEffect.SOUND_BOSS1_EXPLOSIONS, 0.2)
-    end
-  end
 
   --
   -- Fix Globin softlocks
@@ -2343,7 +2538,7 @@ function RacingPlus:PostUpdate()
     Isaac.DebugString("Removing collectible " .. tostring(CollectibleType.COLLECTIBLE_BOOK_OF_SIN))
     player:AddCollectible(CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED, 4, false)
   end
-  
+
   --
   -- Check for Eden's Soul (to fix the charge bug)
   --
@@ -2363,20 +2558,31 @@ function RacingPlus:PostUpdate()
   -- Check Magdalene health
   --
 
-  --[[
-  if raceVars.character == "Magdalene" and soulHearts > 0 then
-    run.maggySouls = run.maggySouls + soulHearts
+  --[[ UNCOMMENT (3/3)
+  if character == PlayerType.PLAYER_MAGDALENA and soulHearts > 0 then
+    run.soulJarSouls = run.soulJarSouls + soulHearts
     player:AddSoulHearts(-1 * soulHearts)
-    Isaac.DebugString("Maggy's soul heart collection is now at: " .. tostring(run.maggySouls))
-    if run.maggySouls >= 12 then
-      run.maggySouls = run.maggySouls - 12
+    Isaac.DebugString("Soul heart collection is now at: " .. tostring(run.soulJarSouls))
+    if run.soulJarSouls >= 8 then -- 4 soul hearts
+      run.soulJarSouls = run.soulJarSouls - 8
       player:AddMaxHearts(2)
-      Isaac.DebugString("Added a heart container to Magdalene.")
+      player:AddHearts(2) -- The container starts empty
+      Isaac.DebugString("Converted 4 soul hearts to a heart container.")
     end
   end
   --]]
 
+  --
+  -- Check health (to fix the bug where we don't die at 0 hearts)
+  -- (this happens if Keeper uses Guppy's Paw or when Magdalene takes a devil deal that grants soul/black hearts)
+  --
+
+  if maxHearts == 0 and soulHearts == 0 and isHoldingItem == false then
+    player:Kill()
+  end
+
   -- Check all the (non-grid) entities in the room
+  local fireworkActive = false
   local entities = Isaac.GetRoomEntities()
   for i = 1, #entities do
     --
@@ -2384,7 +2590,7 @@ function RacingPlus:PostUpdate()
     -- (in vanilla the fuse is: 45 + random(1, 2147483647) % 30)
     --
 
-    if entities[i].Type == EntityType.ENTITY_BOMBDROP and
+    if entities[i].Type == EntityType.ENTITY_BOMBDROP and -- 4
        (entities[i].Variant == 3 or -- Troll Bomb
         entities[i].Variant == 4) and -- Mega Troll Bomb
        entities[i].FrameCount == 1 then
@@ -2395,7 +2601,101 @@ function RacingPlus:PostUpdate()
     end
 
     --
-    -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes, Wizoobs, Red Ghosts, and Lil' Haunts
+    -- Check for fireworks so that we can reduce the volume
+    --
+
+    if entities[i].Type == EntityType.ENTITY_EFFECT and -- 1000
+       entities[i].Variant == EffectVariant.FIREWORKS then -- 104
+
+      fireworkActive = true
+    end
+
+    --
+    -- Check for the chest so that we can swap it for a trophy
+    --
+
+    if stage == 11 and
+       entities[i].Type == EntityType.ENTITY_PICKUP and -- 5
+       entities[i].Variant == PickupVariant.PICKUP_BIGCHEST and -- 340
+       race ~= nil and
+       race.status == "in progress" then
+
+      if raceVars.finished then
+        -- Spawn a Forget Me Now (5.100.127)
+        game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, gridToPos(6, 3), Vector(0, 0), nil,
+                   CollectibleType.COLLECTIBLE_FORGET_ME_NOW, roomSeed)
+      else
+        -- Spawn a custom trophy (5.371.0)
+        game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_TROPHY + 1, -- 371 (custom entity)
+                   entities[i].Position, entities[i].Velocity, nil, 0, roomSeed)
+      end
+
+      -- Now that we have spawned a trophy / Forget Me Now, get rid of the chest
+      entities[i]:Remove()
+    end
+
+    --
+    -- Check to see if we are touching the trophy
+    --
+
+    local squareSize = 25
+    if raceVars.finished == false and
+       entities[i].Type == EntityType.ENTITY_PICKUP and -- 5
+       entities[i].Variant == PickupVariant.PICKUP_TROPHY + 1 and -- 371 (custom entity)
+       player.Position.X >= entities[i].Position.X - squareSize and
+       player.Position.X <= entities[i].Position.X + squareSize and
+       player.Position.Y >= entities[i].Position.Y - squareSize and
+       player.Position.Y <= entities[i].Position.Y + squareSize then
+
+      raceVars.finished = true
+      entities[i]:Remove()
+      player:AnimateCollectible(CollectibleType.COLLECTIBLE_TROPHY, "Pickup", "PlayerPickupSparkle2")
+      Isaac.DebugString("Finished run: Trophy")
+
+      -- Forget Me Now (5.100.127)
+      game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, gridToPos(11, 1), Vector(0, 0), nil,
+                 CollectibleType.COLLECTIBLE_FORGET_ME_NOW, roomSeed)
+    end
+
+    --
+    -- Ban trinkets (1/2)
+    --
+
+    if entities[i].Type == EntityType.ENTITY_PICKUP and -- 5
+       entities[i].Variant == PickupVariant.PICKUP_TRINKET then -- 350
+
+      -- Delete Pageant Boy starting trinkets
+      if run.roomsEntered == 1 and
+         race ~= nil and
+         race.rFormat == "pageant" then
+
+        entities[i]:Remove()
+        break
+      end
+
+      -- Check to see if this trinket is banned
+      local bannedTrinket = false
+      for j = 1, #raceVars.trinketBanList do
+        if entities[i].SubType == raceVars.trinketBanList[j] then
+          bannedTrinket = true
+          break
+        end
+      end
+
+      if bannedTrinket then
+        -- Spawn a new random trinket (the seed should not matter since trinkets are given in order per run)
+        game:Spawn(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_TRINKET, entities[i].Position,
+                   entities[i].Velocity, entities[i].Parent, 0, entities[i].InitSeed) -- 5.350.0
+
+        -- Now that we have created a new trinket, we can delete the old one
+        entities[i]:Remove()
+        Isaac.DebugString("Banned trinket " .. tostring(entities[i].SubType) .. " and made a new random trinket.")
+      end
+    end
+
+    --
+    -- Fix invulnerability frames on Knights, Selfless Knights, Floating Knights, Bone Knights, Eyes, Bloodshot Eyes,
+    -- Wizoobs, Red Ghosts, and Lil' Haunts
     -- Speed up Wizoobs, Red Ghosts, and Cod Worms
     -- Replace Scolex on seeded races
     --
@@ -2453,7 +2753,7 @@ function RacingPlus:PostUpdate()
         end
 
         -- Spawn two Frails (62.2)
-        for i = 1, 2 do
+        for j = 1, 2 do
           local frail = game:Spawn(EntityType.ENTITY_PIN, 2, room:GetCenterPos(), Vector(0,0), nil, 0, 0)
           frail.Visible = false -- It will show the head on the first frame after spawning unless we do this
           -- The game will automatically make the entity visible later on
@@ -2515,22 +2815,50 @@ function RacingPlus:PostUpdate()
             dontTouch = dontTouch,
           }
         end
-        if run.currentLilHaunts[npc.Index].dontTouch == false and -- Don't mess with Lil' Haunts if there is The Haunt in the room
+        if run.currentLilHaunts[npc.Index].dontTouch == false and
+           -- Don't mess with Lil' Haunts if there is The Haunt in the room
            npc.FrameCount == 4 then
 
           -- Lil' Haunts also have invulnerability frames
           npc.State = 4 -- Changing the NPC's state triggers the invulnerability removal in the next frame
-          npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL -- Tears will pass through Lil' Haunts when they first spawn, so fix that
+          npc.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ALL
+          -- Tears will pass through Lil' Haunts when they first spawn, so fix that
           npc.Visible = true -- If we don't do this, they will be invisible after being spawned by a Haunt
         end
 
       elseif npc.Type == EntityType.ENTITY_PORTAL then -- 306
-        --Isaac.DebugString(tostring(npc.State) .. "," .. tostring(npc.StateFrame) .. "," .. tostring(npc.I1) .. "," .. tostring(npc.I2))
         if npc.I2 ~= 5 then -- Portals can spawn 1-5 enemies, and this is stored in I2
           npc.I2 = 5 -- Make all portals spawn 5 enemies since this is unseeded
         end
       end
     end
+  end
+  if fireworkActive then
+    -- Make Fireworks quieter
+    if sfx:IsPlaying(SoundEffect.SOUND_BOSS1_EXPLOSIONS) then -- 182
+      sfx:AdjustVolume(SoundEffect.SOUND_BOSS1_EXPLOSIONS, 0.2)
+    end
+  end
+
+  --
+  -- Ban trinkets (2/2)
+  --
+
+  -- It is possible to pick up a banned trinket if it is spawned in a doorway,
+  -- so also check to see if the player has a banned trinket equipped
+  local hasBannedTrinket = false
+  for j = 1, #raceVars.trinketBanList do
+    if trinket1 == raceVars.trinketBanList[j] or
+       trinket2 == raceVars.trinketBanList[j] then
+
+      hasBannedTrinket = true
+    end
+  end
+  if hasBannedTrinket then
+    player:DropTrinket(player.Position, false) -- The second argument is ReplaceTick
+    -- We can't replace specific trinket slots, so we just have to drop all of them
+    -- If the Tick is banned, then this is a bug
+    -- But if the player also has two trinket slots and the other one is a tick, then this prevents a bug
   end
 
   --
@@ -2543,7 +2871,8 @@ function RacingPlus:PostUpdate()
      player:HasCollectible(CollectibleType.COLLECTIBLE_LITTLE_BAGGY) == false and -- 252
      player:HasCollectible(CollectibleType.COLLECTIBLE_DEEP_POCKETS) == false and -- 416
      player:HasCollectible(CollectibleType.COLLECTIBLE_POLYDACTYLY) == false then -- 454
-     -- Adding a null card/pill won't work if there are 2 slots, so we have to disable the feature if the player has these items
+     -- Adding a null card/pill won't work if there are 2 slots,
+     -- so we have to disable the feature if the player has these items
 
     for i = 0, 3 do -- There are 4 possible players from 0 to 3
       if Input.IsActionPressed(ButtonAction.ACTION_DROP, i) then -- 11
@@ -2575,7 +2904,7 @@ function RacingPlus:PostUpdate()
 
   if race ~= nil and -- We have to check for this since we are in the PostUpdate callback
      race.schoolBag == true and
-     player:IsHoldingItem() == false and
+     isHoldingItem == false and
      isaacFrameCount >= run.schoolBagFrame then
 
     for i = 0, 3 do -- There are 4 possible players from 0 to 3
@@ -2679,7 +3008,8 @@ function RacingPlus:Teleport()
   game:StartRoomTransition(gridIndex, Direction.NO_DIRECTION, RoomTransition.TRANSITION_TELEPORT)
   Isaac.DebugString("Teleport! / Broken Remote / Cursed Eye to room: " .. tostring(gridIndex))
 
-  -- This will override the existing Teleport! / Broken Remote effect because we have already locked in a room transition
+  -- This will override the existing Teleport! / Broken Remote effect because
+  -- we have already locked in a room transition
 end
 
 function RacingPlus:CrystalBall()
@@ -2811,14 +3141,16 @@ function RacingPlus:TeleportCard()
   run.teleporting = true
 end
 
-function RacingPlus.StrengthCard()
+function RacingPlus:StrengthCard()
   -- Local variables
   local game = Game()
   local player = game:GetPlayer(0)
-  local maxHearts = player:GetMaxHearts()
+  local character = player:GetPlayerType()
 
   -- Only give Keeper another heart container if he has less than 2 base containers
-  if raceVars.character == "Keeper" and run.keeperBaseHearts < 4 then
+  if character == PlayerType.PLAYER_KEEPER and -- 14
+     run.keeperBaseHearts < 4 then
+
     -- Add another heart container (temporarily)
     player:AddMaxHearts(2, true) -- Give 1 heart container
     player:AddCoins(1) -- This fills in the new heart container
@@ -2880,16 +3212,10 @@ function RacingPlus:Telepills()
 end
 
 function RacingPlus:Debug()
-  local game = Game()
-  local level = game:GetLevel()
-  local stage = level:GetStage()
-  local room = game:GetRoom()
-  local player = game:GetPlayer(0)
-
   -- Print out various debug information to Isaac's log.txt
-  Isaac.DebugString("-----------------------")
-  Isaac.DebugString("Entering test callback.")
-  Isaac.DebugString("-----------------------")
+  Isaac.DebugString("+-------------------------+")
+  Isaac.DebugString("| Entering test callback. |")
+  Isaac.DebugString("+-------------------------+")
 
   Isaac.DebugString("run table:")
   for k, v in pairs(run) do
@@ -2918,12 +3244,12 @@ function RacingPlus:Debug()
     end
   end
 
-  Isaac.DebugString("----------------------")
-  Isaac.DebugString("Exiting test callback.")
-  Isaac.DebugString("----------------------")
+  Isaac.DebugString("+------------------------+")
+  Isaac.DebugString("| Exiting test callback. |")
+  Isaac.DebugString("+------------------------+")
 
   -- Test stuff
-  raceVars.raceClear = true
+  raceVars.finished = true
 
   -- Display the "use" animation
   return true
@@ -2936,13 +3262,26 @@ RacingPlus:AddCallback(ModCallbacks.MC_NPC_UPDATE,       RacingPlus.NPCUpdate)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_PLAYER_INIT, RacingPlus.PlayerInit)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_RENDER,      RacingPlus.PostRender)
 RacingPlus:AddCallback(ModCallbacks.MC_POST_UPDATE,      RacingPlus.PostUpdate)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin, CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED) -- Replacing Book of Sin (97) with 43
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT) -- 44 (this callback is also used by Broken Remote)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.CrystalBall, CollectibleType.COLLECTIBLE_CRYSTAL_BALL_SEEDED) -- Replacing Crystal Ball (158) with 59
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast, CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER) -- Mega Blast (Placeholder) (custom item, 61)
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BlankCard, CollectibleType.COLLECTIBLE_BLANK_CARD) -- 286
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined, CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
+
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BookOfSin,
+                                                         CollectibleType.COLLECTIBLE_BOOK_OF_SIN_SEEDED)
+                                                         -- Replacing Book of Sin (97) with 43
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Teleport, CollectibleType.COLLECTIBLE_TELEPORT)
+                                                         -- 44 (this callback is also used by Broken Remote)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.CrystalBall,
+                                                         CollectibleType.COLLECTIBLE_CRYSTAL_BALL_SEEDED)
+                                                         -- Replacing Crystal Ball (158) with 59
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.MegaBlast,
+                                                         CollectibleType.COLLECTIBLE_MEGA_SATANS_BREATH_PLACEHOLDER)
+                                                         -- Mega Blast (Placeholder) (custom item, 235)
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.BlankCard,
+                                                         CollectibleType.COLLECTIBLE_BLANK_CARD) -- 286
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Undefined,
+                                                         CollectibleType.COLLECTIBLE_UNDEFINED) -- 324
 RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Void, CollectibleType.COLLECTIBLE_VOID) -- 477
+RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Debug,
+                                                         CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 263)
+
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_FOOL) -- 1
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_EMPEROR) -- 5
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_HERMIT) -- 10
@@ -2950,6 +3289,5 @@ RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.StrengthCard
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_STARS) -- 18
 RacingPlus:AddCallback(ModCallbacks.MC_USE_CARD,         RacingPlus.TeleportCard, Card.CARD_MOON) -- 19
 RacingPlus:AddCallback(ModCallbacks.MC_USE_PILL,         RacingPlus.Telepills, PillEffect.PILLEFFECT_TELEPILLS) -- 19
-RacingPlus:AddCallback(ModCallbacks.MC_USE_ITEM,         RacingPlus.Debug, CollectibleType.COLLECTIBLE_DEBUG) -- Debug (custom item, 263)
 
 -- Missing item IDs: 43, 59, 61, 235, 263

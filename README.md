@@ -24,3 +24,15 @@ Note that the version number listed in the `metadata.xml` file is created by the
 You may also be interested in [the client repository](https://github.com/Zamiell/isaac-racing-client) or [the server repository](https://github.com/Zamiell/isaac-racing-server).
 
 <br />
+
+
+
+Known Bugs
+----------
+
+Some bugs are unfixable due to the limitations of the Afterbirth+ Lua API.
+
+* Fast-clear does not apply to Challenge Rooms or the Boss Rush.
+* If you return from a crawlspace, your character will touch anything in the center of the room, as demonstrated in [this video](https://clips.twitch.tv/NastyBumblingShieldTwitchRPG).
+
+<br />

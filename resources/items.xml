@@ -60,6 +60,7 @@
 	
 	<passive cache="tearflag" description="Building bridges" gfx="Collectibles_060_TheLadder.png" id="60" name="The Ladder" />
 	<!-- <passive description="" id="61" name="Tarot Card" /> -->
+	<passive description="Save your souls" gfx="souljar.png" id="61" name="Soul Jar" />
 	<passive description="Kills heal" gfx="Collectibles_062_CharmOfTheVampire.png" id="62" name="Charm of the Vampire" />
 	<passive description="Stores energy" gfx="Collectibles_063_TheBattery.png" id="63" name="The Battery" />
 	<passive description="50% off" gfx="Collectibles_064_SteamSale.png" id="64" name="Steam Sale" />
@@ -446,7 +447,7 @@
 	<active description="What's inside?" gfx="Collectibles_439_MomsBox.png" id="439" name="Mom's Box" maxcharges="4" cache="all" />
 	<passive achievement="232" description="Matt's Kidney Stone" gfx="Collectibles_440_KidneyStone.png" id="440" name="Kidney Stone" cache="range speed firedelay" />
 	<active achievement="276" description="Laser Breath" gfx="collectibles_441_megasatansbreath.png" id="441" name="Mega Blast" maxcharges="12" />
-	<active description="A placeholder for the beginning of the race" gfx="collectibles_441_megasatansbreath.png" id="61" name="Mega Blast (Placeholder)" maxcharges="12" />
+	<active description="A placeholder for the beginning of the race" gfx="collectibles_441_megasatansbreath.png" id="235" name="Mega Blast (Placeholder)" maxcharges="12" />
 	
 	<!-- Afterbirth+ -->
 	<passive achievement="290" description="Loss is power" gfx="Collectibles_442_DarkPrincesCrown.png" id="442" name="Dark Princes Crown" cache="range firedelay shotspeed" devilprice="2" />
